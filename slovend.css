@@ -190,6 +190,15 @@ a { color: inherit; text-decoration: none; }
   background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(209,43,63,.05) 0deg 3deg, transparent 3deg 9deg);
 }
 
+/* full-page sunburst rays behind all content */
+.page-rays {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: repeating-conic-gradient(from 0deg at 50% 44%, rgba(209,43,63,.07) 0deg 2.4deg, transparent 2.4deg 9deg);
+  -webkit-mask-image: radial-gradient(150% 130% at 50% 44%, #000 42%, transparent 86%);
+  mask-image: radial-gradient(150% 130% at 50% 44%, #000 42%, transparent 86%);
+}
+.site-header, .page-hero, .v-hero, .section, .foot { position: relative; z-index: 1; }
+
 /* ============================================================
    RESPONSIVE
    ============================================================ */
