@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { saveConnection, deleteConnection } from "@/lib/connections";
+import { setSelectedMachineCookie } from "@/lib/selection";
 
 async function requireUserKey(): Promise<string> {
   const session = await auth();
@@ -29,4 +30,12 @@ export async function disconnectNayax() {
   const key = await requireUserKey();
   await deleteConnection(key);
   redirect("/dashboard");
+}
+
+export async function setSelectedMachine(formData: FormData) {
+  await requireUserKey();
+  const id = String(formData.get("machineId") ?? "").trim();
+  const from = String(formData.get("from") ?? "/dashboard");
+  if (id) await setSelectedMachineCookie(id);
+  redirect(from.startsWith("/dashboard") ? from : "/dashboard");
 }

@@ -1,23 +1,36 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
 import PageRays from "@/components/PageRays";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import DashboardNav from "@/components/DashboardNav";
+import MachineSelector from "@/components/MachineSelector";
+import { getCtx, machineLabel } from "@/lib/dashboard";
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Middleware already gates /dashboard; this is a defense-in-depth check that
-  // also gives us the session for the shell.
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+  const ctx = await getCtx();
+  if (!ctx.email) redirect("/login");
+
+  const machineOpts = ctx.machines.map((m) => ({
+    id: String(m.MachineID),
+    name: machineLabel(m),
+  }));
 
   return (
     <>
       <PageRays />
       <SiteHeader />
+      {ctx.conn && machineOpts.length ? (
+        <div className="dash-bar">
+          <div className="wrap dash-bar-in">
+            <DashboardNav />
+            <MachineSelector machines={machineOpts} selectedId={ctx.machineId} />
+          </div>
+        </div>
+      ) : null}
       {children}
       <SiteFooter />
     </>
