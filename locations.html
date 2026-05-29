@@ -11,9 +11,17 @@
   <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="slovend.css">
   <style>
-    .page-hero { position: relative; overflow: hidden; padding: clamp(72px,11vw,128px) 0 clamp(48px,7vw,80px); text-align: center; }
-    .page-hero .sunburst { top: -78%; width: min(1000px,150vw); aspect-ratio: 1; }
-    .page-hero-glow { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(110% 70% at 50% 0%, rgba(209,43,63,.08), transparent 55%); }
+    /* full-page sunburst rays behind all content */
+    .loc-rays {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background: repeating-conic-gradient(from 0deg at 50% 44%, rgba(209,43,63,.07) 0deg 2.4deg, transparent 2.4deg 9deg);
+      -webkit-mask-image: radial-gradient(150% 130% at 50% 44%, #000 42%, transparent 86%);
+      mask-image: radial-gradient(150% 130% at 50% 44%, #000 42%, transparent 86%);
+    }
+    .site-header, .page-hero, .section, .foot { position: relative; z-index: 1; }
+
+    .page-hero { overflow: hidden; padding: clamp(72px,11vw,128px) 0 clamp(48px,7vw,80px); text-align: center; }
+    .page-hero-glow { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(110% 70% at 50% 0%, rgba(209,43,63,.10), transparent 60%); }
     .page-hero h1 { font-size: clamp(44px, 8vw, 84px); margin: 20px 0 0; position: relative; }
 
     .loc { padding: 30px 28px; display: flex; flex-direction: column; }
@@ -38,6 +46,9 @@
 </head>
 <body>
 
+  <!-- full-page background rays -->
+  <div class="loc-rays" aria-hidden="true"></div>
+
   <!-- ===== HEADER ===== -->
   <header class="site-header">
     <nav class="nav">
@@ -55,7 +66,6 @@
 
   <!-- ===== PAGE HERO ===== -->
   <section class="page-hero">
-    <div class="sunburst"></div>
     <div class="page-hero-glow"></div>
     <div class="wrap">
       <div class="kicker center">Find us</div>
@@ -68,13 +78,13 @@
     <div class="wrap" style="max-width:760px;">
       <div class="loc featured">
         <div class="loc-top">
-          <div><div class="city">Brooklyn</div><h3>The Pencil Factory</h3></div>
+          <div><div class="city">Sacramento, CA</div><h3>Nori</h3></div>
           <span class="status live"><span class="dot"></span>Live now</span>
         </div>
-        <p class="addr">122 West Street, Greenpoint<br>Ground-floor lobby</p>
+        <p class="addr">Arden Fair Mall<br>1689 Arden Way, Sacramento, CA 95815</p>
         <div class="meta">
-          <span>Open 24/7</span>
-          <a href="https://maps.google.com/?q=122+West+St+Brooklyn" target="_blank" rel="noopener" class="maplink">Get directions →</a>
+          <span>Mon–Sat 10am–8pm · Sun 11am–7pm</span>
+          <a href="https://maps.google.com/?q=1689+Arden+Way+Sacramento+CA+95815" target="_blank" rel="noopener" class="maplink">Get directions →</a>
         </div>
       </div>
       <p class="note">One machine, lovingly kept · more on the way</p>
