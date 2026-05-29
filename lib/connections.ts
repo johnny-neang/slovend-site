@@ -97,3 +97,26 @@ export async function deleteConnection(userKey: string): Promise<void> {
   }
   (await cookies()).delete(COOKIE);
 }
+
+/** All stored connections (DB-only), decrypted — for the ingestion cron. */
+export async function listAllConnections(): Promise<
+  { userKey: string; conn: NayaxConn }[]
+> {
+  if (!dbConfigured()) return [];
+  await ensureSchema();
+  const sql = getSql();
+  const rows = (await sql`
+    select user_key, base, token_enc, machine_id from nayax_connections
+  `) as { user_key: string; base: string; token_enc: string; machine_id: string | null }[];
+  const out: { userKey: string; conn: NayaxConn }[] = [];
+  for (const r of rows) {
+    const token = decryptSecret(r.token_enc);
+    if (token) {
+      out.push({
+        userKey: r.user_key,
+        conn: { base: r.base, token, machineId: r.machine_id ?? "" },
+      });
+    }
+  }
+  return out;
+}

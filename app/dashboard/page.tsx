@@ -16,6 +16,7 @@ import {
   type Sale,
   type Product,
 } from "@/lib/nayax";
+import { ingestSales } from "@/lib/ingest";
 
 export const metadata: Metadata = { title: "Dashboard · Slovend" };
 export const dynamic = "force-dynamic";
@@ -109,6 +110,9 @@ export default async function Overview({
     getMachineProducts(conn, id).catch(() => [] as Product[]),
     getMachineStatus(conn, id),
   ]);
+
+  // Accumulate sales history on each visit (Hobby plan: no frequent cron).
+  if (ctx.email) await ingestSales(ctx.email, id, sales).catch(() => 0);
 
   const revenue = sales.reduce((s, x) => s + saleAmount(x), 0);
   const vends = sales.length;

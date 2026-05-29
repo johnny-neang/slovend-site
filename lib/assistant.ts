@@ -15,7 +15,7 @@ import {
   alertTime,
   alertCategory,
   productName,
-  productBay,
+  productSlot,
   productPrice,
   productPar,
   productLowStock,
@@ -34,71 +34,55 @@ export function assistantConfigured(): boolean {
 
 export type ChatTurn = { role: "user" | "assistant"; text: string };
 
+// All per-machine tools operate on the already-selected machine — no machineId
+// argument for the model to get wrong.
 const TOOLS: Anthropic.Tool[] = [
+  {
+    name: "get_status",
+    description:
+      "Connectivity & health of the selected machine: online state, last heartbeat, signal (RSSI), temperature.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_sales",
+    description:
+      "Recent sales for the selected machine: total revenue and vend count, payment mix, top products, and the most recent transactions. Lynx returns only recent sales, not full history.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_alerts",
+    description: "Recent alerts/events for the selected machine (faults, reader errors, etc.).",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_inventory",
+    description:
+      "Planogram for the selected machine: selections with slot, product, price, par, and which need restock or are vended out.",
+    input_schema: { type: "object", properties: {} },
+  },
   {
     name: "list_machines",
     description: "List all vending machines on the operator's account (id, name, number).",
     input_schema: { type: "object", properties: {} },
   },
-  {
-    name: "get_status",
-    description:
-      "Connectivity & health for a machine: online state, last heartbeat, signal (RSSI), temperature, last sale times.",
-    input_schema: {
-      type: "object",
-      properties: { machineId: { type: "string", description: "Machine ID (defaults to the selected machine)" } },
-    },
-  },
-  {
-    name: "get_sales",
-    description:
-      "Recent sales for a machine: total revenue and vend count, payment mix, top products, and the most recent transactions. Lynx only returns recent sales, not full history.",
-    input_schema: {
-      type: "object",
-      properties: { machineId: { type: "string", description: "Machine ID (defaults to the selected machine)" } },
-    },
-  },
-  {
-    name: "get_alerts",
-    description: "Recent alerts/events for a machine (faults, reader errors, etc.).",
-    input_schema: {
-      type: "object",
-      properties: { machineId: { type: "string", description: "Machine ID (defaults to the selected machine)" } },
-    },
-  },
-  {
-    name: "get_inventory",
-    description:
-      "Planogram for a machine: selections with bay, product, price, par, and which need restock or are vended out.",
-    input_schema: {
-      type: "object",
-      properties: { machineId: { type: "string", description: "Machine ID (defaults to the selected machine)" } },
-    },
-  },
 ];
 
 async function executeTool(
   name: string,
-  input: Record<string, unknown>,
   conn: NayaxConn,
-  defaultMachineId: string,
+  machineId: string,
 ): Promise<string> {
-  const id = String(input.machineId ?? "").trim() || defaultMachineId;
   try {
     if (name === "list_machines") {
       const ms = await listMachines(conn);
       return JSON.stringify(
-        ms.slice(0, 50).map((m) => ({
-          id: m.MachineID,
-          name: m.MachineName,
-          number: m.MachineNumber,
-        })),
+        ms.slice(0, 50).map((m) => ({ id: m.MachineID, name: m.MachineName, number: m.MachineNumber })),
       );
     }
     if (name === "get_status") {
-      const s = await getMachineStatus(conn, id);
+      const s = await getMachineStatus(conn, machineId);
       return JSON.stringify({
-        machineId: id,
+        machineId,
         online: statusOnline(s),
         lastSeen: statusLastSeen(s),
         signalRSSI: statusSignal(s),
@@ -106,7 +90,7 @@ async function executeTool(
       });
     }
     if (name === "get_sales") {
-      const sales = await getLastSales(conn, id);
+      const sales = await getLastSales(conn, machineId);
       const revenue = sales.reduce((a, s) => a + saleAmount(s), 0);
       const pay: Record<string, number> = {};
       const prod: Record<string, { count: number; revenue: number }> = {};
@@ -129,7 +113,7 @@ async function executeTool(
         time: saleTime(s),
       }));
       return JSON.stringify({
-        machineId: id,
+        machineId,
         recentRevenue: Math.round(revenue * 100) / 100,
         recentVends: sales.length,
         paymentMix: pay,
@@ -138,9 +122,9 @@ async function executeTool(
       });
     }
     if (name === "get_alerts") {
-      const alerts = await getLastAlerts(conn, id);
+      const alerts = await getLastAlerts(conn, machineId);
       return JSON.stringify({
-        machineId: id,
+        machineId,
         totalRecent: alerts.length,
         recent: alerts.slice(0, 20).map((a) => ({
           event: alertText(a),
@@ -150,9 +134,9 @@ async function executeTool(
       });
     }
     if (name === "get_inventory") {
-      const products = await getMachineProducts(conn, id);
+      const products = await getMachineProducts(conn, machineId);
       const rows = products.map((p) => ({
-        bay: productBay(p),
+        slot: productSlot(p),
         product: productName(p) || null,
         price: productPrice(p),
         par: productPar(p),
@@ -160,7 +144,7 @@ async function executeTool(
         vendedOut: productVendedOut(p),
       }));
       return JSON.stringify({
-        machineId: id,
+        machineId,
         selections: rows.length,
         needRestock: rows.filter((r) => r.needsRestock).length,
         items: rows.slice(0, 60),
@@ -168,7 +152,9 @@ async function executeTool(
     }
     return `Unknown tool: ${name}`;
   } catch (e) {
-    return JSON.stringify({ error: e instanceof Error ? e.message : "tool failed" });
+    const msg = e instanceof Error ? e.message : "tool failed";
+    console.warn(`[assistant] tool ${name} failed for machine ${machineId}: ${msg}`);
+    return JSON.stringify({ error: msg, machineId });
   }
 }
 
@@ -181,15 +167,16 @@ export async function runAssistant(
   const client = new Anthropic({ apiKey: process.env.HAIKU_API });
   const today = new Date().toISOString().slice(0, 10);
 
-  const system = `You are Vendai, an assistant for vending-machine operators. You have READ-ONLY access to the operator's Nayax Lynx data via tools. The currently selected machine is "${machine.name}" (id ${machine.id}); tools default to it, but you can pass a machineId or call list_machines for fleet questions.
+  const system = `You are Vendai, an assistant for vending-machine operators. The operator's Nayax Lynx account is already connected and a machine is already selected: "${machine.name}" (id ${machine.id}). You have read-only tools that act on THAT machine — call them; never ask the user which machine, and never say you can't find the machine.
+
+Tools: get_status, get_sales, get_alerts, get_inventory (all operate on the selected machine), and list_machines (whole fleet).
 
 Guidelines:
-- Use tools to ground every factual answer in live data; don't guess numbers.
-- Be concise and concrete — lead with the number or the answer, then a short supporting detail.
-- Money is USD unless stated. "Revenue" uses settled amounts.
-- Lynx returns only recent sales (not full history); say so if asked for longer ranges — historical reports are coming.
-- You cannot make changes (read-only). If asked to change something, explain what you can see and suggest the action.
-- Today is ${today}.`;
+- Always ground factual answers in a tool call — don't guess numbers.
+- Lead with the answer/number, then a short supporting detail. Be concise.
+- Money is USD; "revenue" is settled amounts. Lynx returns only recent sales (not full history) — say so if asked for longer ranges; historical reports live on the Reports tab.
+- If a tool returns an {"error": ...}, briefly tell the user what the error said (e.g. a connectivity or permissions issue) instead of claiming the machine doesn't exist.
+- You are read-only and cannot make changes. Today is ${today}.`;
 
   const messages: Anthropic.MessageParam[] = [
     ...history.map((h) => ({ role: h.role, content: h.text }) as Anthropic.MessageParam),
@@ -217,12 +204,7 @@ Guidelines:
     const toolResults: Anthropic.ToolResultBlockParam[] = [];
     for (const block of res.content) {
       if (block.type === "tool_use") {
-        const out = await executeTool(
-          block.name,
-          (block.input ?? {}) as Record<string, unknown>,
-          conn,
-          machine.id,
-        );
+        const out = await executeTool(block.name, conn, machine.id);
         toolResults.push({ type: "tool_result", tool_use_id: block.id, content: out });
       }
     }

@@ -5,7 +5,7 @@ import DashError from "@/components/DashError";
 import {
   getMachineProducts,
   productName,
-  productBay,
+  productSlot,
   productPar,
   productPrice,
   productMissing,
@@ -51,7 +51,7 @@ export default async function InventoryPage() {
           <table className="dtable">
             <thead>
               <tr>
-                <th>Bay</th>
+                <th>Slot</th>
                 <th>Product</th>
                 <th className="r">Price</th>
                 <th className="r">Par</th>
@@ -62,7 +62,7 @@ export default async function InventoryPage() {
             <tbody>
               {products.length ? (
                 products.map((p, i) => {
-                  const bay = productBay(p);
+                  const bay = productSlot(p);
                   const par = productPar(p);
                   const price = productPrice(p);
                   const missing = productMissing(p);

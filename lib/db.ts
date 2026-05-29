@@ -51,6 +51,22 @@ export function ensureSchema(): Promise<void> {
       `;
       await sql`create index if not exists chat_threads_user_idx on chat_threads (user_key, updated_at desc)`;
       await sql`create index if not exists chat_messages_thread_idx on chat_messages (thread_id, id)`;
+      await sql`
+        create table if not exists sales (
+          id              bigserial primary key,
+          user_key        text not null,
+          machine_id      text not null,
+          txn_id          text not null,
+          product         text,
+          amount          double precision,
+          currency        text,
+          payment_method  text,
+          occurred_at     timestamptz,
+          ingested_at     timestamptz not null default now(),
+          unique (user_key, machine_id, txn_id)
+        )
+      `;
+      await sql`create index if not exists sales_machine_time_idx on sales (user_key, machine_id, occurred_at desc)`;
     })();
   }
   return _schema;

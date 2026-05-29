@@ -202,6 +202,17 @@ export function saleTxnId(s: Sale): string {
     "ID",
   ]);
 }
+/** GMT timestamp string for storage/aggregation (vs saleTime which prefers local for display). */
+export function saleOccurredAtGMT(s: Sale): string {
+  return pickStr(s, [
+    "AuthorizationDateTimeGMT",
+    "SettlementDateTimeGMT",
+    "MachineAuthorizationTime",
+    "TransactionTime",
+    "Time",
+    "Date",
+  ]);
+}
 
 /* alerts (Lynx event log) */
 export function alertText(a: Alert): string {
@@ -223,6 +234,22 @@ export function productName(p: Product): string {
 }
 export function productBay(p: Product): string {
   return pickStr(p, ["MDBCode", "Selection", "Bay", "Code", "Column", "Position", "Slot", "PACode"]);
+}
+/**
+ * Human selection/slot. Prefers an explicit selection field; otherwise decodes
+ * the Lynx MDBCode, which packs row in the high byte and column in the low byte
+ * (e.g. 1032 = 0x0408 -> row 4, col 8 -> "D8"). 0/invalid -> "—".
+ */
+export function productSlot(p: Product): string {
+  const explicit = pickStr(p, ["PACode", "Selection", "Slot", "OperatorButtonCode"]);
+  if (explicit) return explicit;
+  const code = pickNum(p, ["MDBCode"]);
+  if (code === null) return "";
+  if (code <= 0) return "—";
+  const row = Math.floor(code / 256);
+  const col = code % 256;
+  if (row >= 1 && row <= 26) return `${String.fromCharCode(64 + row)}${col}`;
+  return String(code);
 }
 export function productStock(p: Product): number | null {
   return pickNum(p, ["CurrentQuantity", "Quantity", "Stock", "CurrentStock", "Count", "Remaining"]);

@@ -372,3 +372,18 @@
   .chat-layout { grid-template-columns: 1fr; }
   .thread-list { max-height: 160px; }
 }
+
+/* ===== REPORTS ===== */
+.range-tabs { display: inline-flex; gap: 2px; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--paper); }
+.range-tabs a { font-family: var(--label); font-weight: 700; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); padding: 7px 14px; border-radius: 999px; }
+.range-tabs a:hover { color: var(--cherry); }
+.range-tabs a.active { color: #fff; background: var(--cherry); }
+.rlist { display: flex; flex-direction: column; }
+.rrow { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line-soft); font-family: var(--body); font-size: 14px; }
+.rrow:last-child { border-bottom: 0; }
+.rrow .rp { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rrow .rv { color: var(--ink-faint); font-family: var(--mono); flex: 0 0 auto; }
+.hour-grid { display: flex; align-items: flex-end; gap: 3px; height: 120px; }
+.hour-grid .hcol { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; }
+.hour-grid .hbar { width: 100%; max-width: 16px; background: var(--cherry); border-radius: 2px 2px 0 0; display: block; opacity: .85; }
+.hour-grid .hl { font-family: var(--mono); font-size: 9px; color: var(--ink-faint); height: 10px; }
