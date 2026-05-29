@@ -6,17 +6,19 @@ import {
   getLastAlerts,
   alertText,
   alertTime,
-  alertSeverity,
+  alertCategory,
   type Alert,
 } from "@/lib/nayax";
 
 export const metadata: Metadata = { title: "Alerts · Vendai" };
 export const dynamic = "force-dynamic";
 
+const SHOW = 50;
+
 function sev(a: Alert): "high" | "med" | "low" {
-  const s = alertSeverity(a).toLowerCase();
-  if (/(crit|high|error|fault|3)/.test(s)) return "high";
-  if (/(warn|med|2)/.test(s)) return "med";
+  const s = `${alertText(a)} ${alertCategory(a)}`.toLowerCase();
+  if (/(error|fault|fail|jam|critical|tamper|offline|down|empty|vend out)/.test(s)) return "high";
+  if (/(warn|low|temperature|door|reader|disabled)/.test(s)) return "med";
   return "low";
 }
 
@@ -31,9 +33,8 @@ export default async function AlertsPage() {
       />
     );
 
-  const alerts = await getLastAlerts(ctx.conn, ctx.machineId).catch(
-    () => [] as Alert[],
-  );
+  const all = await getLastAlerts(ctx.conn, ctx.machineId).catch(() => [] as Alert[]);
+  const alerts = all.slice(0, SHOW);
 
   return (
     <section className="section dash-page">
@@ -41,11 +42,11 @@ export default async function AlertsPage() {
         <div className="dash-head">
           <div>
             <div className="kicker">{machineLabel(ctx.machine)}</div>
-            <h1 className="serif-display">Alerts &amp; faults</h1>
+            <h1 className="serif-display">Alerts &amp; events</h1>
           </div>
-          <span className={`status ${alerts.length ? "off" : "live"}`}>
+          <span className={`status ${all.length ? "off" : "live"}`}>
             <span className="dot" />
-            {alerts.length ? `${alerts.length} recent` : "All clear"}
+            {all.length ? `${all.length.toLocaleString()} recent` : "All clear"}
           </span>
         </div>
 
@@ -57,16 +58,21 @@ export default async function AlertsPage() {
                 <div className="alert-main">
                   <div className="alert-text">{alertText(a)}</div>
                   <div className="alert-meta">
-                    {alertSeverity(a) ? `${alertSeverity(a)} · ` : ""}
+                    {alertCategory(a) ? `${alertCategory(a)} · ` : ""}
                     {alertTime(a) || "—"}
                   </div>
                 </div>
               </div>
             ))
           ) : (
-            <div className="empty">No recent alerts — everything looks healthy.</div>
+            <div className="empty">No recent events — everything looks healthy.</div>
           )}
         </div>
+        {all.length > SHOW ? (
+          <p className="note" style={{ textAlign: "left", marginTop: 14 }}>
+            Showing the {SHOW} most recent of {all.length.toLocaleString()} events
+          </p>
+        ) : null}
       </div>
     </section>
   );

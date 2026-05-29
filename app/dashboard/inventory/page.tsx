@@ -6,9 +6,10 @@ import {
   getMachineProducts,
   productName,
   productBay,
-  productStock,
-  productCapacity,
+  productPar,
   productPrice,
+  productMissing,
+  productVendedOut,
   productLowStock,
   type Product,
 } from "@/lib/nayax";
@@ -42,7 +43,7 @@ export default async function InventoryPage() {
           </div>
           <span className={`status ${low.length ? "off" : "live"}`}>
             <span className="dot" />
-            {low.length ? `${low.length} low / ${products.length}` : `${products.length} bays`}
+            {low.length ? `${low.length} need attention / ${products.length}` : `${products.length} selections`}
           </span>
         </div>
 
@@ -52,29 +53,33 @@ export default async function InventoryPage() {
               <tr>
                 <th>Bay</th>
                 <th>Product</th>
-                <th className="r">Stock</th>
-                <th className="r">Capacity</th>
                 <th className="r">Price</th>
+                <th className="r">Par</th>
+                <th className="r">Sold↑</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
               {products.length ? (
                 products.map((p, i) => {
-                  const stock = productStock(p);
-                  const cap = productCapacity(p);
+                  const bay = productBay(p);
+                  const par = productPar(p);
                   const price = productPrice(p);
-                  const lowFlag = productLowStock(p);
+                  const missing = productMissing(p);
+                  const out = productVendedOut(p);
+                  const low2 = productLowStock(p);
                   return (
-                    <tr key={i} className={lowFlag ? "row-low" : undefined}>
-                      <td className="mono">{productBay(p) || "—"}</td>
-                      <td>{productName(p)}</td>
-                      <td className="r">{stock ?? "—"}</td>
-                      <td className="r muted">{cap ?? "—"}</td>
+                    <tr key={i} className={low2 ? "row-low" : undefined}>
+                      <td className="mono">{bay || "—"}</td>
+                      <td>{productName(p) || (bay ? `Selection ${bay}` : "—")}</td>
                       <td className="r">{price != null ? `$${price.toFixed(2)}` : "—"}</td>
+                      <td className="r muted">{par ?? "—"}</td>
+                      <td className="r muted">{missing ?? "—"}</td>
                       <td>
-                        {lowFlag ? (
-                          <span className="badge-low">Low stock</span>
+                        {out ? (
+                          <span className="badge-low">Vended out</span>
+                        ) : low2 ? (
+                          <span className="badge-low">Low</span>
                         ) : (
                           <span className="badge-ok">OK</span>
                         )}
@@ -92,6 +97,9 @@ export default async function InventoryPage() {
             </tbody>
           </table>
         </div>
+        <p className="note" style={{ textAlign: "left", marginTop: 14 }}>
+          &quot;Sold↑&quot; = units sold since last refill · live stock counts appear when the machine reports DEX/planogram data
+        </p>
       </div>
     </section>
   );

@@ -5,15 +5,15 @@ import { connectNayax, disconnectNayax } from "./actions";
 import {
   getMachineStatus,
   getLastSales,
-  getLastAlerts,
   getMachineProducts,
   saleAmount,
   salePayment,
   productLowStock,
   statusOnline,
   statusLastSeen,
+  statusSignal,
+  statusTemp,
   type Sale,
-  type Alert,
   type Product,
 } from "@/lib/nayax";
 
@@ -28,7 +28,6 @@ export default async function Overview({
   const ctx = await getCtx();
   const sp = await searchParams;
 
-  // ---- Not connected: per-user connect form ----
   if (!ctx.conn) {
     return (
       <section className="section dash-page">
@@ -81,7 +80,6 @@ export default async function Overview({
     );
   }
 
-  // ---- Connected but Lynx unreachable / no machines ----
   if (ctx.error || !ctx.machine) {
     return (
       <section className="section dash-page">
@@ -89,10 +87,7 @@ export default async function Overview({
           <div className="empty-state">
             <div className="seal">!</div>
             <h2>{ctx.error ? "Couldn't reach Nayax" : "No machines found"}</h2>
-            <p>
-              {ctx.error ??
-                "Your token works, but no machines were returned for this account."}
-            </p>
+            <p>{ctx.error ?? "Your token works, but no machines were returned."}</p>
             <form action={disconnectNayax} style={{ marginTop: 18 }}>
               <button type="submit" className="btn btn-gold">
                 Re-enter credentials
@@ -104,30 +99,32 @@ export default async function Overview({
     );
   }
 
-  // ---- Connected: machine overview ----
   const conn = ctx.conn;
   const id = ctx.machineId;
 
-  const [sales, alerts, products, status] = await Promise.all([
+  // Note: lastAlerts returns the full event log (very large), so it is fetched
+  // only on the Alerts page, not here.
+  const [sales, products, status] = await Promise.all([
     getLastSales(conn, id).catch(() => [] as Sale[]),
-    getLastAlerts(conn, id).catch(() => [] as Alert[]),
     getMachineProducts(conn, id).catch(() => [] as Product[]),
     getMachineStatus(conn, id),
   ]);
 
   const revenue = sales.reduce((s, x) => s + saleAmount(x), 0);
   const vends = sales.length;
+  const avg = vends ? revenue / vends : 0;
   const lowStock = products.filter(productLowStock);
   const online = statusOnline(status);
   const lastSeen = statusLastSeen(status);
+  const signal = statusSignal(status);
+  const temp = statusTemp(status);
 
-  // payment mix from recent sales
   const payMix = new Map<string, number>();
-  for (const s of sales) {
-    const k = salePayment(s) || "Unknown";
-    payMix.set(k, (payMix.get(k) ?? 0) + 1);
-  }
+  for (const s of sales) payMix.set(salePayment(s) || "Unknown", (payMix.get(salePayment(s) || "Unknown") ?? 0) + 1);
   const payRows = [...payMix.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  const money = (n: number) =>
+    `$${n.toLocaleString(undefined, { maximumFractionDigits: n < 100 ? 2 : 0 })}`;
 
   return (
     <section className="section dash-page">
@@ -147,11 +144,7 @@ export default async function Overview({
           <div className="tiles tiles-4">
             <div className="tile">
               <div className="l">Recent revenue</div>
-              <div className="n">
-                {revenue > 0
-                  ? `$${revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-                  : "—"}
-              </div>
+              <div className="n">{revenue > 0 ? money(revenue) : "—"}</div>
               <div className="d">last sales</div>
             </div>
             <div className="tile">
@@ -159,13 +152,13 @@ export default async function Overview({
               <div className="n">{vends}</div>
               <div className="d">transactions</div>
             </div>
-            <Link className="tile tile-link" href="/dashboard/alerts">
-              <div className="l">Open alerts</div>
-              <div className="n">{alerts.length}</div>
-              <div className="d">view all →</div>
-            </Link>
+            <div className="tile">
+              <div className="l">Avg sale</div>
+              <div className="n">{avg > 0 ? money(avg) : "—"}</div>
+              <div className="d">per vend</div>
+            </div>
             <Link className="tile tile-link" href="/dashboard/inventory">
-              <div className="l">Low stock</div>
+              <div className="l">Needs restock</div>
               <div className="n">{lowStock.length}</div>
               <div className="d">view planogram →</div>
             </Link>
@@ -190,7 +183,11 @@ export default async function Overview({
             ) : (
               <div className="muted">No recent sales.</div>
             )}
+            <Link className="panel-link" href="/dashboard/sales">
+              View sales feed →
+            </Link>
           </div>
+
           <div className="panel">
             <div className="panel-h">Health</div>
             <div className="kv">
@@ -203,12 +200,16 @@ export default async function Overview({
                 <b>{lastSeen || "—"}</b>
               </div>
               <div>
-                <span>Selected machine</span>
-                <b>{id}</b>
+                <span>Signal (RSSI)</span>
+                <b>{signal ?? "—"}</b>
+              </div>
+              <div>
+                <span>Temperature</span>
+                <b>{temp || "—"}</b>
               </div>
             </div>
-            <Link className="panel-link" href="/dashboard/sales">
-              View sales feed →
+            <Link className="panel-link" href="/dashboard/alerts">
+              View alerts &amp; events →
             </Link>
           </div>
         </div>

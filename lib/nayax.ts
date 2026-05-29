@@ -8,11 +8,11 @@ import "server-only";
  *   GET /operational/v1/machines
  *   GET /operational/v1/machines/{id}
  *   GET /operational/v1/machines/{id}/lastSales
- *   GET /operational/v1/machines/{id}/lastAlerts
+ *   GET /operational/v1/machines/{id}/lastAlerts   (returns the full event log)
  *   GET /operational/v1/machines/{id}/machineProducts
  *   GET /operational/v1/machines/{id}/status
  *
- * Lynx field names vary, so reads go through defensive `pick*` helpers.
+ * Field names below are taken from real Lynx responses.
  */
 
 export type NayaxConn = { base: string; token: string; machineId: string };
@@ -30,8 +30,6 @@ export type MachineStatus = Record<string, unknown>;
 async function lynx<T>(conn: NayaxConn, path: string): Promise<T> {
   const base = conn.base.replace(/\/$/, "");
   const url = `${base}${path}`;
-
-  // Standard Bearer auth; fall back to the raw token if the API rejects it.
   let res = await fetch(url, {
     headers: { Authorization: `Bearer ${conn.token}`, accept: "application/json" },
     cache: "no-store",
@@ -42,16 +40,12 @@ async function lynx<T>(conn: NayaxConn, path: string): Promise<T> {
       cache: "no-store",
     });
   }
-
-  if (!res.ok) {
-    throw new Error(`Nayax ${path} -> ${res.status} ${res.statusText}`);
-  }
+  if (!res.ok) throw new Error(`Nayax ${path} -> ${res.status} ${res.statusText}`);
   return (await res.json()) as T;
 }
 
 function asArray<T>(data: unknown): T[] {
   if (Array.isArray(data)) return data as T[];
-  // Some Lynx endpoints wrap the list, e.g. { Data: [...] } / { items: [...] }.
   if (data && typeof data === "object") {
     for (const k of ["Data", "data", "items", "Items", "Result", "results"]) {
       const v = (data as Record<string, unknown>)[k];
@@ -135,7 +129,7 @@ function num(v: unknown): number | null {
 function pickStr(o: Record<string, unknown>, keys: string[]): string {
   for (const k of keys) {
     const v = o[k];
-    if (typeof v === "string" && v.trim()) return v;
+    if (typeof v === "string" && v.trim()) return v.trim();
     if (typeof v === "number") return String(v);
   }
   return "";
@@ -161,18 +155,20 @@ function pickBool(o: Record<string, unknown>, keys: string[]): boolean | null {
   return null;
 }
 
-/* sales */
+/* sales — SettlementValue is the charged amount; AuthorizationValue is a
+   card pre-auth and must NOT be used as revenue except as a last resort. */
 export function saleAmount(s: Sale): number {
   return (
     pickNum(s, [
+      "SettlementValue",
       "Amount",
       "amount",
       "Price",
-      "price",
       "TotalAmount",
       "PaymentAmount",
       "Sum",
       "Value",
+      "AuthorizationValue",
     ]) ?? 0
   );
 }
@@ -181,94 +177,107 @@ export function saleLabel(s: Sale): string {
 }
 export function saleTime(s: Sale): string {
   return pickStr(s, [
+    "MachineAuthorizationTime",
+    "AuthorizationDateTimeGMT",
+    "SettlementDateTimeGMT",
+    "TransactionTime",
     "Time",
     "Date",
-    "TransactionTime",
-    "CreatedAt",
     "Timestamp",
-    "PaymentDateTime",
-    "SettlementTime",
   ]);
 }
 export function salePayment(s: Sale): string {
-  return pickStr(s, [
-    "PaymentMethod",
-    "PaymentMethodName",
-    "PaymentType",
-    "Payment",
-    "CardType",
-  ]);
+  return pickStr(s, ["PaymentMethod", "RecognitionMethod", "CardBrand", "PaymentType", "CardType"]);
+}
+export function saleCurrency(s: Sale): string {
+  return pickStr(s, ["CurrencyCode", "Currency"]) || "USD";
 }
 export function saleTxnId(s: Sale): string {
   return pickStr(s, [
     "TransactionID",
     "TransactionId",
+    "PaymentServiceTransactionID",
     "TransID",
-    "TransactionNumber",
-    "SettlementID",
     "Id",
     "ID",
   ]);
 }
 
-/* alerts */
+/* alerts (Lynx event log) */
 export function alertText(a: Alert): string {
   return (
-    pickStr(a, [
-      "AlertText",
-      "Description",
-      "Message",
-      "AlertName",
-      "Name",
-      "Text",
-      "Title",
-    ]) || "Alert"
+    pickStr(a, ["EventDescription", "AlertText", "Description", "Message", "EventGroupName", "Name"]) ||
+    "Event"
   );
 }
 export function alertTime(a: Alert): string {
-  return pickStr(a, ["AlertTime", "Time", "Date", "CreatedAt", "Timestamp"]);
+  return pickStr(a, ["EventDateTimeVMC", "EventDateTimeGMT", "AlertTime", "Time", "Date", "Timestamp"]);
 }
-export function alertSeverity(a: Alert): string {
-  return pickStr(a, ["Severity", "Level", "Priority", "AlertLevel", "Type"]);
+export function alertCategory(a: Alert): string {
+  return pickStr(a, ["EventCategoryName", "EventGroupName", "Severity", "Level", "Type"]);
 }
 
 /* products / planogram */
 export function productName(p: Product): string {
-  return pickStr(p, ["ProductName", "Product", "Name", "ItemName", "Description"]) || "—";
+  return pickStr(p, ["DEXProductName", "ProductName", "Product", "Name", "ItemName", "Description"]);
 }
 export function productBay(p: Product): string {
-  return pickStr(p, ["MDBCode", "Selection", "Bay", "Code", "Column", "Position", "Slot"]);
+  return pickStr(p, ["MDBCode", "Selection", "Bay", "Code", "Column", "Position", "Slot", "PACode"]);
 }
 export function productStock(p: Product): number | null {
   return pickNum(p, ["CurrentQuantity", "Quantity", "Stock", "CurrentStock", "Count", "Remaining"]);
 }
-export function productCapacity(p: Product): number | null {
-  return pickNum(p, ["Capacity", "MaxCapacity", "ParLevel", "Max", "FullCapacity"]);
+export function productPar(p: Product): number | null {
+  return pickNum(p, ["PAR", "Capacity", "MaxCapacity", "ParLevel", "Max", "FullCapacity"]);
 }
 export function productThreshold(p: Product): number | null {
   return pickNum(p, ["VendOutAlertThreshold", "MinThreshold", "AlertThreshold", "ReorderLevel"]);
 }
 export function productPrice(p: Product): number | null {
-  return pickNum(p, ["Price", "ProductPrice", "Amount", "UnitPrice"]);
+  return pickNum(p, ["MachinePrice", "CashPrice", "CreditCardPrice", "RetailPrice", "Price", "ProductPrice", "UnitPrice"]);
+}
+export function productMissing(p: Product): number | null {
+  return pickNum(p, ["MissingStockByMDB", "MissingStockByDEX"]);
+}
+export function productVendedOut(p: Product): boolean {
+  return pickBool(p, ["SelectionVendOutBit", "VendOut", "SoldOut"]) === true;
 }
 export function productLowStock(p: Product): boolean {
+  if (productVendedOut(p)) return true;
   const stock = productStock(p);
-  if (stock === null) return false;
   const threshold = productThreshold(p);
-  if (threshold !== null) return stock <= threshold;
-  const cap = productCapacity(p);
-  if (cap !== null && cap > 0) return stock <= Math.max(1, Math.ceil(cap * 0.2));
-  return stock <= 2;
+  if (stock !== null && threshold !== null) return stock <= threshold;
+  const par = productPar(p);
+  if (stock !== null && par !== null && par > 0) return stock <= Math.max(1, Math.ceil(par * 0.2));
+  return false;
 }
 
 /* status */
 export function statusOnline(s: MachineStatus | null): boolean | null {
   if (!s) return null;
-  return pickBool(s, ["Online", "IsOnline", "Connected", "IsConnected", "Status", "ConnectivityStatus"]);
+  return pickBool(s, ["MachineMQTTStatus", "Online", "IsOnline", "Connected", "IsConnected"]);
 }
 export function statusLastSeen(s: MachineStatus | null): string {
   if (!s) return "";
-  return pickStr(s, ["LastSeen", "LastHeartbeat", "LastConnection", "LastCommunication", "LastSeenTime", "HeartbeatTime"]);
+  return pickStr(s, [
+    "LastKeepAliveDateTime",
+    "LastTransactionDateTime",
+    "MachineStatusUpdateDateTime",
+    "LastDEXReadDateTime",
+    "LastSeen",
+  ]);
+}
+export function statusSignal(s: MachineStatus | null): number | null {
+  if (!s) return null;
+  return pickNum(s, ["LastReceptionLevel(RSSI)", "RSSI", "SignalStrength", "ReceptionLevel"]);
+}
+export function statusTemp(s: MachineStatus | null): string {
+  if (!s) return "";
+  const f = pickNum(s, ["TemperatureFahrenheit"]);
+  if (f !== null) return `${f}°F`;
+  const c = pickNum(s, ["TemperatureCelcius", "TemperatureCelsius"]);
+  if (c !== null) return `${c}°C`;
+  return "";
 }
 export function statusFirmware(s: MachineStatus | null): string {
   if (!s) return "";
