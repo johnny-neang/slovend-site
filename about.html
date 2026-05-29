@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <title>Slovend — About</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Slovend is a small company with an old-fashioned idea: that a vending machine can be beautiful, well-kept, and genuinely good to find.">
+  <meta name="description" content="Slovend is a subsidiary of FutureNow, Inc. — a mentorship collective in Sheridan, WY built to unlock potential in people and the things they build. One well-kept machine, plus Vendai, our AI layer for fleets.">
   <link rel="icon" type="image/png" href="logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,7 +18,9 @@
 
     .story { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(36px,5vw,80px); align-items: center; }
     .story .figure { position: relative; border: 1px solid var(--line); background: var(--paper-2); padding: 18px; }
-    .story .figure img { width: 100%; aspect-ratio: 4/5; object-fit: contain; display: block; }
+    .story .figure .plate { display: flex; align-items: center; justify-content: center; aspect-ratio: 4 / 3; padding: clamp(24px,5vw,56px); }
+    .story .figure .plate img { width: 100%; max-width: 340px; height: auto; object-fit: contain; display: block; transition: transform .25s ease; }
+    .story .figure .plate:hover img { transform: translateY(-2px); }
     .story .figure .cap { font-family: var(--label); font-weight: 600; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-faint); margin-top: 14px; display: flex; justify-content: space-between; }
     .prose p { font-family: var(--body); font-size: clamp(18px,2vw,21px); line-height: 1.62; color: var(--ink-dim); margin: 0 0 18px; }
     .prose p .drop { float: left; font-family: var(--display); font-size: 3.6em; line-height: 0.7; padding: 8px 12px 0 0; color: var(--cherry); }
@@ -63,13 +65,16 @@
   <section class="section" style="padding-top:clamp(40px,6vw,72px);">
     <div class="wrap story">
       <div class="figure">
-        <img src="assets/slovend-cat.png" alt="The Slovend lucky cat emblem">
-        <div class="cap"><span>Slovend</span><span>Plate 01</span></div>
+        <a class="plate" href="https://futurenow.co" target="_blank" rel="noopener" aria-label="FutureNow, Inc.">
+          <img src="assets/futurenow-logo.png" alt="FutureNow, Inc.">
+        </a>
+        <div class="cap"><span>FutureNow, Inc.</span><span>Parent company</span></div>
       </div>
       <div class="prose">
-        <div class="kicker" style="margin-bottom:20px;">Where it began</div>
-        <p><span class="drop">S</span>lovend started with a single machine in a Brooklyn studio in the spring of 2025. We were tired of the same beige boxes — half-empty, half-broken, stocked with whatever was cheapest. We believed a vending machine could be something you were glad to walk up to.</p>
-        <p>So we built one, and we tend it like it matters — kept full, kept clean, and watched over by the lucky cat. One machine, for now. More when we can do them justice.</p>
+        <div class="kicker" style="margin-bottom:20px;">Part of FutureNow</div>
+        <p><span class="drop">S</span>lovend is the work of people who believe the everyday is worth doing well. We keep one vending machine — Nori, at Arden Fair in Sacramento — stocked with care and watched over by the lucky cat, and we're building <a href="vendai.html" style="color:var(--cherry);text-decoration:none;">Vendai</a>, an AI layer that lets operators talk to their whole fleet in plain language.</p>
+        <p>We're a subsidiary of <b class="gold">FutureNow, Inc.</b>, a mentorship collective in Sheridan, Wyoming built on a single idea: that the right partnership can unlock the full potential in people — and in the things they build. Slovend is where that conviction meets the real world.</p>
+        <p>The same care FutureNow gives to growing founders, we give to a machine on a mall floor: show up, tend it well, and let good fortune follow.</p>
       </div>
     </div>
   </section>
