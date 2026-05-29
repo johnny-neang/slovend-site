@@ -16,7 +16,6 @@
       display: flex; align-items: center; justify-content: center; text-align: center;
       padding: 80px var(--gutter); overflow: hidden;
     }
-    .hero .sunburst { bottom: -62%; width: min(1100px, 150vw); aspect-ratio: 1; }
     .hero-glow {
       position: absolute; inset: 0; pointer-events: none;
       background: radial-gradient(120% 80% at 50% 10%, rgba(209,43,63,.08), transparent 55%);
@@ -30,6 +29,9 @@
   </style>
 </head>
 <body>
+
+  <!-- full-page background rays -->
+  <div class="page-rays" aria-hidden="true"></div>
 
   <!-- ===== HEADER ===== -->
   <header class="site-header">
@@ -48,7 +50,6 @@
 
   <!-- ===== HERO ===== -->
   <section class="hero">
-    <div class="sunburst"></div>
     <div class="hero-glow"></div>
     <div class="hero-frame"></div>
     <div class="corner tl"></div><div class="corner tr"></div>
