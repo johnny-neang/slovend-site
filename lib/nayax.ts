@@ -236,20 +236,20 @@ export function productBay(p: Product): string {
   return pickStr(p, ["MDBCode", "Selection", "Bay", "Code", "Column", "Position", "Slot", "PACode"]);
 }
 /**
- * Human selection/slot. Prefers an explicit selection field; otherwise decodes
- * the Lynx MDBCode, which packs row in the high byte and column in the low byte
- * (e.g. 1032 = 0x0408 -> row 4, col 8 -> "D8"). 0/invalid -> "—".
+ * Human selection/slot from the Lynx MDBCode, which packs row in the high byte
+ * and column in the low byte. The slot is the row followed by the column
+ * zero-padded to two digits, e.g. 1032 = 0x0408 -> row 4, col 8 -> "408".
+ * MDBCode 0 -> "—". Falls back to an explicit selection field if no MDBCode.
  */
 export function productSlot(p: Product): string {
-  const explicit = pickStr(p, ["PACode", "Selection", "Slot", "OperatorButtonCode"]);
-  if (explicit) return explicit;
   const code = pickNum(p, ["MDBCode"]);
-  if (code === null) return "";
-  if (code <= 0) return "—";
-  const row = Math.floor(code / 256);
-  const col = code % 256;
-  if (row >= 1 && row <= 26) return `${String.fromCharCode(64 + row)}${col}`;
-  return String(code);
+  if (code !== null && code > 0) {
+    const row = code >> 8; // high byte
+    const col = code & 0xff; // low byte
+    return `${row}${String(col).padStart(2, "0")}`;
+  }
+  if (code === 0) return "—";
+  return pickStr(p, ["PACode", "Selection", "Slot", "OperatorButtonCode"]);
 }
 export function productStock(p: Product): number | null {
   return pickNum(p, ["CurrentQuantity", "Quantity", "Stock", "CurrentStock", "Count", "Remaining"]);
