@@ -16,13 +16,20 @@ export type Sale = Record<string, unknown>;
 
 async function lynx<T>(conn: NayaxConn, path: string): Promise<T> {
   const base = conn.base.replace(/\/$/, "");
-  const res = await fetch(`${base}${path}`, {
-    headers: {
-      Authorization: `Bearer ${conn.token}`,
-      Accept: "application/json",
-    },
+  const url = `${base}${path}`;
+
+  // Standard Bearer auth; fall back to the raw token if the API rejects it.
+  let res = await fetch(url, {
+    headers: { Authorization: `Bearer ${conn.token}`, accept: "application/json" },
     cache: "no-store",
   });
+  if (res.status === 401 || res.status === 403) {
+    res = await fetch(url, {
+      headers: { Authorization: conn.token, accept: "application/json" },
+      cache: "no-store",
+    });
+  }
+
   if (!res.ok) {
     throw new Error(`Nayax ${path} -> ${res.status} ${res.statusText}`);
   }
@@ -30,7 +37,7 @@ async function lynx<T>(conn: NayaxConn, path: string): Promise<T> {
 }
 
 export async function listMachines(conn: NayaxConn): Promise<Machine[]> {
-  const data = await lynx<unknown>(conn, "/operational/api/v1/machines");
+  const data = await lynx<unknown>(conn, "/operational/v1/machines");
   return Array.isArray(data) ? (data as Machine[]) : [];
 }
 
@@ -40,7 +47,7 @@ export async function getLastSales(
 ): Promise<Sale[]> {
   const data = await lynx<unknown>(
     conn,
-    `/operational/api/v1/machines/${machineId}/lastSales`,
+    `/operational/v1/machines/${machineId}/lastSales`,
   );
   return Array.isArray(data) ? (data as Sale[]) : [];
 }
