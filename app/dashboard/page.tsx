@@ -1,25 +1,32 @@
 import type { Metadata } from "next";
 import { auth } from "@/auth";
 import {
-  nayaxConfigured,
-  defaultMachineId,
-  getMachine,
+  getConnection,
+  listMachines,
   getLastSales,
   saleAmount,
   saleLabel,
   saleTime,
+  type Machine,
   type Sale,
 } from "@/lib/nayax";
+import { connectNayax, disconnectNayax } from "./actions";
 
 export const metadata: Metadata = { title: "Dashboard · Slovend" };
 export const dynamic = "force-dynamic";
 
-export default async function Dashboard() {
+export default async function Dashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const session = await auth();
   const first = session?.user?.name?.split(" ")[0];
+  const conn = await getConnection();
+  const sp = await searchParams;
 
-  // No Nayax token yet -> friendly connect state (app still deploys cleanly).
-  if (!nayaxConfigured()) {
+  // ---- Not connected: per-user "Connect your Nayax account" form ----
+  if (!conn) {
     return (
       <section className="section dash-page">
         <div className="wrap">
@@ -31,37 +38,73 @@ export default async function Dashboard() {
               </h1>
             </div>
           </div>
-          <div className="empty-state">
-            <div className="seal">✦</div>
+
+          <div className="connect-card">
             <h2>Connect your Nayax account</h2>
             <p>
-              Your dashboard is ready. Add your Nayax Lynx API token to start
-              showing live machine, sales and inventory data.
+              Vendai reads your fleet using <strong>your own</strong> Nayax Lynx
+              API token. It&apos;s stored only for your session — never shared
+              with other users.
             </p>
-            <p style={{ marginTop: 14 }}>
-              Set <code>NAYAX_API_TOKEN</code> and <code>NAYAX_MACHINE_ID</code>{" "}
-              in the environment.
-            </p>
+            {sp?.error === "token" ? (
+              <div className="auth-error">An API token is required.</div>
+            ) : null}
+            <form action={connectNayax}>
+              <div className="field">
+                <label htmlFor="base">Lynx API base URL</label>
+                <input
+                  id="base"
+                  name="base"
+                  defaultValue="https://lynx.nayax.com"
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="token">API token</label>
+                <input
+                  id="token"
+                  name="token"
+                  type="password"
+                  placeholder="Your Lynx bearer token"
+                  autoComplete="off"
+                  required
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="machineId">
+                  Machine ID{" "}
+                  <span style={{ opacity: 0.6 }}>(optional)</span>
+                </label>
+                <input id="machineId" name="machineId" placeholder="e.g. 5001" />
+              </div>
+              <button type="submit" className="btn btn-gold">
+                Connect
+              </button>
+            </form>
           </div>
         </div>
       </section>
     );
   }
 
-  const machineId = defaultMachineId();
-  let machineName = machineId ? `Machine ${machineId}` : "Your fleet";
+  // ---- Connected: pull live data ----
+  let machineName = "Your fleet";
   let sales: Sale[] = [];
   let error: string | null = null;
 
   try {
-    if (machineId) {
-      const [m, s] = await Promise.all([
-        getMachine(machineId),
-        getLastSales(machineId),
-      ]);
-      if (m?.MachineName) machineName = m.MachineName;
-      sales = s;
+    const machines = await listMachines(conn);
+    let machine: Machine | undefined;
+    if (conn.machineId) {
+      machine =
+        machines.find((m) => String(m.MachineID) === conn.machineId) ??
+        machines[0];
+    } else {
+      machine = machines[0];
     }
+    const id = machine?.MachineID ?? conn.machineId;
+    if (machine?.MachineName) machineName = machine.MachineName;
+    else if (id) machineName = `Machine ${id}`;
+    if (id) sales = await getLastSales(conn, id);
   } catch (e) {
     error = e instanceof Error ? e.message : "Could not reach Nayax";
   }
@@ -79,10 +122,17 @@ export default async function Dashboard() {
             <div className="kicker">Vendai dashboard</div>
             <h1 className="serif-display">{machineName}</h1>
           </div>
-          <span className="status live">
-            <span className="dot" />
-            Live
-          </span>
+          <div className="dash-actions">
+            <span className="status live">
+              <span className="dot" />
+              Connected
+            </span>
+            <form action={disconnectNayax}>
+              <button type="submit" className="btn-mini dark">
+                Disconnect
+              </button>
+            </form>
+          </div>
         </div>
 
         {error ? (
@@ -90,6 +140,11 @@ export default async function Dashboard() {
             <div className="seal">!</div>
             <h2>Couldn&apos;t reach Nayax</h2>
             <p>{error}</p>
+            <form action={disconnectNayax} style={{ marginTop: 18 }}>
+              <button type="submit" className="btn btn-gold">
+                Re-enter credentials
+              </button>
+            </form>
           </div>
         ) : (
           <div className="dash-grid">
