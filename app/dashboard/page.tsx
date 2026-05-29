@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { auth } from "@/auth";
 import {
-  getConnection,
   listMachines,
   getLastSales,
   saleAmount,
@@ -10,6 +9,7 @@ import {
   type Machine,
   type Sale,
 } from "@/lib/nayax";
+import { getConnection } from "@/lib/connections";
 import { connectNayax, disconnectNayax } from "./actions";
 
 export const metadata: Metadata = { title: "Dashboard · Slovend" };
@@ -22,7 +22,8 @@ export default async function Dashboard({
 }) {
   const session = await auth();
   const first = session?.user?.name?.split(" ")[0];
-  const conn = await getConnection();
+  const email = session?.user?.email?.toLowerCase();
+  const conn = email ? await getConnection(email) : null;
   const sp = await searchParams;
 
   // ---- Not connected: per-user "Connect your Nayax account" form ----

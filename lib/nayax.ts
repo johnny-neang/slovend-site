@@ -1,18 +1,9 @@
 import "server-only";
-import { cookies } from "next/headers";
 
 /**
- * Per-user Nayax Lynx connection.
- *
- * Each operator connects their OWN Lynx API token — this is NOT a global,
- * shared credential. The connection is stored in an httpOnly + secure cookie
- * scoped to that user's browser session; the token never reaches client JS and
- * is never committed or shared across users.
- *
- * (Follow-up: move to an encrypted per-user record in a database when we add one.)
+ * Nayax Lynx API client. Stateless: every call takes the caller's connection
+ * (base URL + token). Storage of that connection lives in lib/connections.ts.
  */
-
-const COOKIE = "nayax_conn";
 
 export type NayaxConn = { base: string; token: string; machineId: string };
 export type Machine = {
@@ -22,18 +13,6 @@ export type Machine = {
   [k: string]: unknown;
 };
 export type Sale = Record<string, unknown>;
-
-export async function getConnection(): Promise<NayaxConn | null> {
-  const raw = (await cookies()).get(COOKIE)?.value;
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as NayaxConn;
-    if (parsed?.base && parsed?.token) return parsed;
-  } catch {
-    /* malformed cookie */
-  }
-  return null;
-}
 
 async function lynx<T>(conn: NayaxConn, path: string): Promise<T> {
   const base = conn.base.replace(/\/$/, "");
