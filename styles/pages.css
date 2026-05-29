@@ -342,3 +342,33 @@
   .dash-mock .tiles-4 { grid-template-columns: repeat(2, 1fr); }
   .panel-grid { grid-template-columns: 1fr; }
 }
+
+/* ===== CHAT (live assistant) ===== */
+.chat-layout { display: grid; grid-template-columns: 260px 1fr; gap: 18px; align-items: start; }
+.thread-list { border: 1px solid var(--line); background: var(--paper); max-height: 60vh; overflow-y: auto; }
+.thread-item { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--line-soft); cursor: pointer; }
+.thread-item:last-child { border-bottom: 0; }
+.thread-item:hover { background: var(--paper-2); }
+.thread-item.active { background: var(--paper-2); box-shadow: inset 3px 0 0 var(--cherry); }
+.thread-item .tt { flex: 1; font-family: var(--body); font-size: 14px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.thread-item .tx { flex: 0 0 auto; border: 0; background: none; color: var(--ink-faint); font-size: 18px; line-height: 1; cursor: pointer; padding: 0 2px; }
+.thread-item .tx:hover { color: var(--cherry); }
+
+.chat-live { display: flex; flex-direction: column; }
+.chat-live .chat-body { max-height: 56vh; min-height: 340px; overflow-y: auto; }
+.chat-empty { font-family: var(--body); color: var(--paper-dim); font-size: 14px; line-height: 1.6; padding: 8px 4px; }
+.chat-empty b { color: var(--cherry-hi); }
+.chat-input .box-input { flex: 1; background: var(--ink); border: 1px solid rgba(250,246,238,.12); border-radius: 10px; padding: 12px 14px; color: var(--paper); font-size: 13px; font-family: var(--body); outline: none; }
+.chat-input .box-input::placeholder { color: var(--paper-faint); }
+.chat-input .box-input:focus { border-color: var(--cherry-hi); }
+.chat-input .send:disabled { opacity: .45; cursor: default; }
+.msg.typing { display: inline-flex; gap: 5px; align-items: center; }
+.msg.typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--paper-faint); display: inline-block; animation: typing 1s infinite; }
+.msg.typing span:nth-child(2) { animation-delay: .15s; }
+.msg.typing span:nth-child(3) { animation-delay: .3s; }
+@keyframes typing { 0%,60%,100% { opacity: .25; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-2px); } }
+
+@media (max-width: 760px) {
+  .chat-layout { grid-template-columns: 1fr; }
+  .thread-list { max-height: 160px; }
+}
