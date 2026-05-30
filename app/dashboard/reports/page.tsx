@@ -187,11 +187,6 @@ export default async function ReportsPage({
             </div>
           </>
         )}
-
-        <p className="note" style={{ textAlign: "left", marginTop: 14 }}>
-          History compiles from recent sales on each dashboard visit + a daily job
-          (Hobby plan). More frequent polling is available on Vercel Pro.
-        </p>
       </div>
     </section>
   );
