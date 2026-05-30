@@ -19,6 +19,14 @@ export function cleanTz(tz: string | null | undefined): string {
   return tz && (ALLOWED_TZ as readonly string[]).includes(tz) ? tz : DEFAULT_TZ;
 }
 
+/** The whitelisted timezone wrapped as a single-quoted SQL literal, e.g.
+ * `'America/Los_Angeles'`. Safe to interpolate directly into SQL (the value is
+ * constrained to ALLOWED_TZ) — use this for `AT TIME ZONE`, which cannot reliably
+ * take a bound parameter as its zone argument. */
+export function sqlTz(tz: string | null | undefined): string {
+  return `'${cleanTz(tz)}'`;
+}
+
 /** The machine's global timezone (set on the Overview). Falls back to a legacy
  * value previously stored under tax_settings, then to the default. */
 export async function getMachineTimezone(userKey: string, machineId: string): Promise<string> {

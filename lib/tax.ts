@@ -1,6 +1,6 @@
 import "server-only";
 import { dbConfigured, getSql, ensureSchema } from "@/lib/db";
-import { cleanTz } from "@/lib/settings";
+import { sqlTz } from "@/lib/settings";
 import type { Win } from "@/lib/window";
 
 export type TaxSettings = {
@@ -129,48 +129,47 @@ export async function taxReport(
   if (!dbConfigured() || !machineId) return EMPTY_REPORT;
   await ensureSchema();
   const sql = getSql();
-  const tz = cleanTz(timezone);
+  const Z = sqlTz(timezone); // whitelisted, inlined as a literal (not a bound param)
   const from = win.fromDate;
   const to = win.toDate;
+  const P = [userKey, machineId, from, to];
+  const bounds =
+    `user_key = $1 and machine_id = $2 ` +
+    `and occurred_at >= ($3::date)::timestamp at time zone ${Z} ` +
+    `and occurred_at <  (($4::date + 1)::timestamp) at time zone ${Z}`;
 
   try {
   // Period bounds are interpreted in the machine's local timezone so a late-night
   // sale lands in the correct filing day.
-  const totals = (await sql`
-    select count(*)::int as txns,
-           coalesce(sum(amount),0)::float as gross,
-           to_char(min(occurred_at) at time zone ${tz}::text, 'YYYY-MM-DD') as cmin,
-           to_char(max(occurred_at) at time zone ${tz}::text, 'YYYY-MM-DD') as cmax
-    from sales
-    where user_key = ${userKey} and machine_id = ${machineId}
-      and occurred_at >= (${from}::date)::timestamp at time zone ${tz}::text
-      and occurred_at <  ((${to}::date + 1)::timestamp) at time zone ${tz}::text
-  `) as { txns: number; gross: number; cmin: string | null; cmax: string | null }[];
+  const totals = (await sql.query(
+    `select count(*)::int as txns,
+            coalesce(sum(amount),0)::float as gross,
+            to_char(min(occurred_at) at time zone ${Z}, 'YYYY-MM-DD') as cmin,
+            to_char(max(occurred_at) at time zone ${Z}, 'YYYY-MM-DD') as cmax
+     from sales where ${bounds}`,
+    P,
+  )) as { txns: number; gross: number; cmin: string | null; cmax: string | null }[];
   const t = totals[0] ?? { txns: 0, gross: 0, cmin: null, cmax: null };
   if (!t.txns) return EMPTY_REPORT;
 
-  const daily = (await sql`
-    select to_char(date_trunc('day', occurred_at at time zone ${tz}::text), 'YYYY-MM-DD') as period,
-           count(*)::int as txns,
-           coalesce(sum(amount),0)::float as gross
-    from sales
-    where user_key = ${userKey} and machine_id = ${machineId}
-      and occurred_at >= (${from}::date)::timestamp at time zone ${tz}::text
-      and occurred_at <  ((${to}::date + 1)::timestamp) at time zone ${tz}::text
-    group by date_trunc('day', occurred_at at time zone ${tz}::text)
-    order by date_trunc('day', occurred_at at time zone ${tz}::text)
-  `) as { period: string; txns: number; gross: number }[];
+  const daily = (await sql.query(
+    `select to_char(date_trunc('day', occurred_at at time zone ${Z}), 'YYYY-MM-DD') as period,
+            count(*)::int as txns,
+            coalesce(sum(amount),0)::float as gross
+     from sales where ${bounds}
+     group by date_trunc('day', occurred_at at time zone ${Z})
+     order by date_trunc('day', occurred_at at time zone ${Z})`,
+    P,
+  )) as { period: string; txns: number; gross: number }[];
 
-  const pay = (await sql`
-    select coalesce(nullif(payment_method,''),'Unknown') as method,
-           count(*)::int as txns,
-           coalesce(sum(amount),0)::float as gross
-    from sales
-    where user_key = ${userKey} and machine_id = ${machineId}
-      and occurred_at >= (${from}::date)::timestamp at time zone ${tz}::text
-      and occurred_at <  ((${to}::date + 1)::timestamp) at time zone ${tz}::text
-    group by 1 order by gross desc
-  `) as { method: string; txns: number; gross: number }[];
+  const pay = (await sql.query(
+    `select coalesce(nullif(payment_method,''),'Unknown') as method,
+            count(*)::int as txns,
+            coalesce(sum(amount),0)::float as gross
+     from sales where ${bounds}
+     group by 1 order by gross desc`,
+    P,
+  )) as { method: string; txns: number; gross: number }[];
 
   // Roll up to months for long ranges so the table stays readable.
   const spanDays =
