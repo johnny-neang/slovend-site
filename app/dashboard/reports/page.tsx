@@ -7,6 +7,7 @@ import { getLastSales, type Sale } from "@/lib/nayax";
 import { ingestSales } from "@/lib/ingest";
 import { reportSummary } from "@/lib/reports";
 import { resolveWindow } from "@/lib/window";
+import { getMachineTimezone } from "@/lib/settings";
 import BarChart, { type BarDatum } from "@/components/BarChart";
 
 export const metadata: Metadata = { title: "Reports · Vendai" };
@@ -50,7 +51,10 @@ export default async function ReportsPage({
     await ingestSales(ctx.email, ctx.machineId, sales).catch(() => 0);
   }
 
-  const r = ctx.email ? await reportSummary(ctx.email, ctx.machineId, win) : null;
+  const tz = ctx.email
+    ? await getMachineTimezone(ctx.email, ctx.machineId)
+    : "America/Los_Angeles";
+  const r = ctx.email ? await reportSummary(ctx.email, ctx.machineId, win, tz) : null;
   const hourMap = new Map((r?.hours ?? []).map((h) => [h.hr, h.n]));
   const busiest =
     r && r.byDay.length
@@ -186,7 +190,7 @@ export default async function ReportsPage({
             </div>
 
             <div className="panel" style={{ marginTop: 20 }}>
-              <div className="panel-h">Sales by hour of day</div>
+              <div className="panel-h">Sales by hour of day · {tz.replace(/_/g, " ")}</div>
               <BarChart data={hourData} tone="light" height={150} />
             </div>
           </>

@@ -1,5 +1,6 @@
 import "server-only";
 import { dbConfigured, getSql, ensureSchema } from "@/lib/db";
+import { cleanTz } from "@/lib/settings";
 import type { Win } from "@/lib/window";
 
 export type ReportSummary = {
@@ -28,76 +29,87 @@ export async function reportSummary(
   userKey: string,
   machineId: string,
   win: Win,
+  timezone: string,
 ): Promise<ReportSummary> {
   if (!dbConfigured() || !machineId) return EMPTY;
   await ensureSchema();
   const sql = getSql();
+  const tz = cleanTz(timezone);
+  const from = win.fromDate;
+  const to = win.toDate;
 
-  const totals = (await sql`
-    select count(*)::int as vends,
-           coalesce(sum(amount),0)::float as revenue,
-           count(distinct date_trunc('day', occurred_at))::int as active_days
-    from sales
-    where user_key = ${userKey} and machine_id = ${machineId}
-      and occurred_at >= ${win.fromIso}::timestamptz
-      and occurred_at <  ${win.toExclusiveIso}::timestamptz
-  `) as { vends: number; revenue: number; active_days: number }[];
+  // All buckets/bounds are evaluated in the machine's local timezone so the day
+  // and hour-of-day charts line up with the operator's clock (matches the Tax page).
+  try {
+    const totals = (await sql`
+      select count(*)::int as vends,
+             coalesce(sum(amount),0)::float as revenue,
+             count(distinct date_trunc('day', occurred_at at time zone ${tz}::text))::int as active_days
+      from sales
+      where user_key = ${userKey} and machine_id = ${machineId}
+        and occurred_at >= (${from}::date)::timestamp at time zone ${tz}::text
+        and occurred_at <  ((${to}::date + 1)::timestamp) at time zone ${tz}::text
+    `) as { vends: number; revenue: number; active_days: number }[];
 
-  const t = totals[0] ?? { vends: 0, revenue: 0, active_days: 0 };
-  if (!t.vends) return EMPTY;
+    const t = totals[0] ?? { vends: 0, revenue: 0, active_days: 0 };
+    if (!t.vends) return EMPTY;
 
-  const dayRows = (await sql`
-    select to_char(date_trunc('day', occurred_at), 'YYYY-MM-DD') as d,
-           count(*)::int as vends,
-           coalesce(sum(amount),0)::float as revenue
-    from sales
-    where user_key = ${userKey} and machine_id = ${machineId}
-      and occurred_at >= ${win.fromIso}::timestamptz
-      and occurred_at <  ${win.toExclusiveIso}::timestamptz
-    group by date_trunc('day', occurred_at)
-    order by date_trunc('day', occurred_at)
-  `) as { d: string; vends: number; revenue: number }[];
-  const byDay = bucketSeries(dayRows, win.fromDate, win.toDate);
+    const dayRows = (await sql`
+      select to_char(date_trunc('day', occurred_at at time zone ${tz}::text), 'YYYY-MM-DD') as d,
+             count(*)::int as vends,
+             coalesce(sum(amount),0)::float as revenue
+      from sales
+      where user_key = ${userKey} and machine_id = ${machineId}
+        and occurred_at >= (${from}::date)::timestamp at time zone ${tz}::text
+        and occurred_at <  ((${to}::date + 1)::timestamp) at time zone ${tz}::text
+      group by date_trunc('day', occurred_at at time zone ${tz}::text)
+      order by date_trunc('day', occurred_at at time zone ${tz}::text)
+    `) as { d: string; vends: number; revenue: number }[];
+    const byDay = bucketSeries(dayRows, from, to);
 
-  const topProducts = (await sql`
-    select coalesce(nullif(product,''),'—') as product,
-           count(*)::int as vends,
-           coalesce(sum(amount),0)::float as revenue
-    from sales
-    where user_key = ${userKey} and machine_id = ${machineId}
-      and occurred_at >= ${win.fromIso}::timestamptz
-      and occurred_at <  ${win.toExclusiveIso}::timestamptz
-    group by 1 order by revenue desc limit 10
-  `) as { product: string; vends: number; revenue: number }[];
+    const topProducts = (await sql`
+      select coalesce(nullif(product,''),'—') as product,
+             count(*)::int as vends,
+             coalesce(sum(amount),0)::float as revenue
+      from sales
+      where user_key = ${userKey} and machine_id = ${machineId}
+        and occurred_at >= (${from}::date)::timestamp at time zone ${tz}::text
+        and occurred_at <  ((${to}::date + 1)::timestamp) at time zone ${tz}::text
+      group by 1 order by revenue desc limit 10
+    `) as { product: string; vends: number; revenue: number }[];
 
-  const payMix = (await sql`
-    select coalesce(nullif(payment_method,''),'Unknown') as method, count(*)::int as n
-    from sales
-    where user_key = ${userKey} and machine_id = ${machineId}
-      and occurred_at >= ${win.fromIso}::timestamptz
-      and occurred_at <  ${win.toExclusiveIso}::timestamptz
-    group by 1 order by n desc
-  `) as { method: string; n: number }[];
+    const payMix = (await sql`
+      select coalesce(nullif(payment_method,''),'Unknown') as method, count(*)::int as n
+      from sales
+      where user_key = ${userKey} and machine_id = ${machineId}
+        and occurred_at >= (${from}::date)::timestamp at time zone ${tz}::text
+        and occurred_at <  ((${to}::date + 1)::timestamp) at time zone ${tz}::text
+      group by 1 order by n desc
+    `) as { method: string; n: number }[];
 
-  const hours = (await sql`
-    select extract(hour from occurred_at)::int as hr, count(*)::int as n
-    from sales
-    where user_key = ${userKey} and machine_id = ${machineId}
-      and occurred_at >= ${win.fromIso}::timestamptz
-      and occurred_at <  ${win.toExclusiveIso}::timestamptz
-    group by 1 order by 1
-  `) as { hr: number; n: number }[];
+    const hours = (await sql`
+      select extract(hour from occurred_at at time zone ${tz}::text)::int as hr, count(*)::int as n
+      from sales
+      where user_key = ${userKey} and machine_id = ${machineId}
+        and occurred_at >= (${from}::date)::timestamp at time zone ${tz}::text
+        and occurred_at <  ((${to}::date + 1)::timestamp) at time zone ${tz}::text
+      group by 1 order by 1
+    `) as { hr: number; n: number }[];
 
-  return {
-    hasData: true,
-    vends: t.vends,
-    revenue: t.revenue,
-    activeDays: t.active_days,
-    byDay,
-    topProducts,
-    payMix,
-    hours,
-  };
+    return {
+      hasData: true,
+      vends: t.vends,
+      revenue: t.revenue,
+      activeDays: t.active_days,
+      byDay,
+      topProducts,
+      payMix,
+      hours,
+    };
+  } catch (e) {
+    console.error("reportSummary query failed", e);
+    return EMPTY;
+  }
 }
 
 function shortMD(iso: string): string {

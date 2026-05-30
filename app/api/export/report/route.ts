@@ -4,6 +4,7 @@ import { reportSummary } from "@/lib/reports";
 import { buildReportPdf } from "@/lib/pdf";
 import { fileSlug } from "@/lib/exports";
 import { resolveWindow } from "@/lib/window";
+import { getMachineTimezone } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -18,7 +19,8 @@ export async function GET(req: Request) {
 
   const sp = new URL(req.url).searchParams;
   const win = resolveWindow({ range: sp.get("range"), from: sp.get("from"), to: sp.get("to") });
-  const summary = await reportSummary(ctx.email, ctx.machineId, win);
+  const tz = await getMachineTimezone(ctx.email, ctx.machineId);
+  const summary = await reportSummary(ctx.email, ctx.machineId, win, tz);
   const pdf = await buildReportPdf({
     machineName: machineLabel(ctx.machine),
     windowLabel: win.label,
