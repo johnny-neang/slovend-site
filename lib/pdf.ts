@@ -39,7 +39,7 @@ function kit(page: PDFPage, f: Fonts) {
 }
 
 function money(n: number): string {
-  return `$${n.toLocaleString("en-US", { maximumFractionDigits: n < 100 ? 2 : 0 })}`;
+  return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 async function newDoc(title: string): Promise<{

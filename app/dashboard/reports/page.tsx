@@ -7,6 +7,7 @@ import { getLastSales, type Sale } from "@/lib/nayax";
 import { ingestSales } from "@/lib/ingest";
 import { reportSummary } from "@/lib/reports";
 import { resolveWindow } from "@/lib/window";
+import BarChart, { type BarDatum } from "@/components/BarChart";
 
 export const metadata: Metadata = { title: "Reports · Vendai" };
 export const dynamic = "force-dynamic";
@@ -14,7 +15,14 @@ export const dynamic = "force-dynamic";
 const RANGES = [7, 30, 90];
 
 function money(n: number): string {
-  return `$${n.toLocaleString(undefined, { maximumFractionDigits: n < 100 ? 2 : 0 })}`;
+  return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function hourShort(h: number): string {
+  return `${h % 12 === 0 ? 12 : h % 12}${h < 12 ? "a" : "p"}`;
+}
+function hourLong(h: number): string {
+  return `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? "AM" : "PM"}`;
 }
 
 export default async function ReportsPage({
@@ -43,13 +51,24 @@ export default async function ReportsPage({
   }
 
   const r = ctx.email ? await reportSummary(ctx.email, ctx.machineId, win) : null;
-  const maxRev = Math.max(1, ...(r?.byDay.map((d) => d.revenue) ?? [1]));
-  const maxHr = Math.max(1, ...(r?.hours.map((h) => h.n) ?? [1]));
   const hourMap = new Map((r?.hours ?? []).map((h) => [h.hr, h.n]));
   const busiest =
     r && r.byDay.length
-      ? r.byDay.reduce((a, b) => (b.revenue > a.revenue ? b : a)).day
+      ? r.byDay.reduce((a, b) => (b.revenue > a.revenue ? b : a)).label
       : "—";
+  const dayData: BarDatum[] = (r?.byDay ?? []).map((d) => ({
+    label: d.label,
+    value: d.revenue,
+    tip: `${d.label} · ${money(d.revenue)} · ${d.vends} vend${d.vends === 1 ? "" : "s"}`,
+  }));
+  const hourData: BarDatum[] = Array.from({ length: 24 }, (_, h) => {
+    const n = hourMap.get(h) ?? 0;
+    return {
+      label: hourShort(h),
+      value: n,
+      tip: `${hourLong(h)} · ${n} vend${n === 1 ? "" : "s"}`,
+    };
+  });
 
   return (
     <section className="section dash-page">
@@ -131,21 +150,8 @@ export default async function ReportsPage({
 
             <div className="dash-mock" style={{ marginBottom: 20 }}>
               <div className="tile chart">
-                <div className="l">Daily revenue</div>
-                <div className="bars">
-                  {r.byDay.map((d, i) => (
-                    <div
-                      key={i}
-                      className={`bcol${d.revenue === maxRev ? " hi" : ""}`}
-                      title={`${d.day}: ${money(d.revenue)}`}
-                    >
-                      <span
-                        className="bbar"
-                        style={{ height: `${Math.max(3, Math.round((d.revenue / maxRev) * 100))}%` }}
-                      />
-                    </div>
-                  ))}
-                </div>
+                <div className="l">Daily revenue · {win.short}</div>
+                <BarChart data={dayData} tone="dark" height={160} />
               </div>
             </div>
 
@@ -181,20 +187,7 @@ export default async function ReportsPage({
 
             <div className="panel" style={{ marginTop: 20 }}>
               <div className="panel-h">Sales by hour of day</div>
-              <div className="hour-grid">
-                {Array.from({ length: 24 }, (_, h) => {
-                  const n = hourMap.get(h) ?? 0;
-                  return (
-                    <div className="hcol" key={h} title={`${h}:00 — ${n} vends`}>
-                      <span
-                        className="hbar"
-                        style={{ height: `${Math.max(3, Math.round((n / maxHr) * 100))}%` }}
-                      />
-                      <span className="hl">{h % 6 === 0 ? h : ""}</span>
-                    </div>
-                  );
-                })}
-              </div>
+              <BarChart data={hourData} tone="light" height={150} />
             </div>
           </>
         )}

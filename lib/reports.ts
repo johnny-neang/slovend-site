@@ -7,7 +7,7 @@ export type ReportSummary = {
   vends: number;
   revenue: number;
   activeDays: number;
-  byDay: { day: string; vends: number; revenue: number }[];
+  byDay: { label: string; vends: number; revenue: number }[];
   topProducts: { product: string; vends: number; revenue: number }[];
   payMix: { method: string; n: number }[];
   hours: { hr: number; n: number }[];
@@ -46,8 +46,8 @@ export async function reportSummary(
   const t = totals[0] ?? { vends: 0, revenue: 0, active_days: 0 };
   if (!t.vends) return EMPTY;
 
-  const byDay = (await sql`
-    select to_char(date_trunc('day', occurred_at), 'Mon DD') as day,
+  const dayRows = (await sql`
+    select to_char(date_trunc('day', occurred_at), 'YYYY-MM-DD') as d,
            count(*)::int as vends,
            coalesce(sum(amount),0)::float as revenue
     from sales
@@ -56,7 +56,8 @@ export async function reportSummary(
       and occurred_at <  ${win.toExclusiveIso}::timestamptz
     group by date_trunc('day', occurred_at)
     order by date_trunc('day', occurred_at)
-  `) as { day: string; vends: number; revenue: number }[];
+  `) as { d: string; vends: number; revenue: number }[];
+  const byDay = bucketSeries(dayRows, win.fromDate, win.toDate);
 
   const topProducts = (await sql`
     select coalesce(nullif(product,''),'—') as product,
@@ -97,6 +98,46 @@ export async function reportSummary(
     payMix,
     hours,
   };
+}
+
+function shortMD(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+}
+
+/**
+ * Fill every day in [fromDate, toDate] (zeros for days with no sales) so the chart
+ * spans the whole selected window, then bucket: daily for short ranges, weekly once
+ * a range exceeds ~6 weeks so the bars stay readable.
+ */
+function bucketSeries(
+  rows: { d: string; vends: number; revenue: number }[],
+  fromDate: string,
+  toDate: string,
+): { label: string; vends: number; revenue: number }[] {
+  const map = new Map(rows.map((r) => [r.d, r]));
+  const days: { date: string; vends: number; revenue: number }[] = [];
+  let t = Date.parse(`${fromDate}T00:00:00Z`);
+  const end = Date.parse(`${toDate}T00:00:00Z`);
+  while (t <= end) {
+    const iso = new Date(t).toISOString().slice(0, 10);
+    const r = map.get(iso);
+    days.push({ date: iso, vends: r?.vends ?? 0, revenue: r?.revenue ?? 0 });
+    t += 86400000;
+  }
+  if (days.length <= 45) {
+    return days.map((d) => ({ label: shortMD(d.date), vends: d.vends, revenue: d.revenue }));
+  }
+  const out: { label: string; vends: number; revenue: number }[] = [];
+  for (let i = 0; i < days.length; i += 7) {
+    const grp = days.slice(i, i + 7);
+    out.push({
+      label: shortMD(grp[0].date),
+      vends: grp.reduce((s, x) => s + x.vends, 0),
+      revenue: grp.reduce((s, x) => s + x.revenue, 0),
+    });
+  }
+  return out;
 }
 
 /** Time-boxed totals for the overview: last 24 hours and last 7 days. */
