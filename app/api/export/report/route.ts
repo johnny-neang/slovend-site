@@ -3,14 +3,10 @@ import { getCtx, machineLabel } from "@/lib/dashboard";
 import { reportSummary } from "@/lib/reports";
 import { buildReportPdf } from "@/lib/pdf";
 import { fileSlug } from "@/lib/exports";
+import { resolveWindow } from "@/lib/window";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-function clampRange(v: string | null): number {
-  const n = Number(v);
-  return [7, 30, 90].includes(n) ? n : 30;
-}
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -20,15 +16,16 @@ export async function GET(req: Request) {
   if (!ctx.conn || !ctx.machine || !ctx.email)
     return new Response("Connect your Nayax account first.", { status: 400 });
 
-  const range = clampRange(new URL(req.url).searchParams.get("range"));
-  const summary = await reportSummary(ctx.email, ctx.machineId, range);
+  const sp = new URL(req.url).searchParams;
+  const win = resolveWindow({ range: sp.get("range"), from: sp.get("from"), to: sp.get("to") });
+  const summary = await reportSummary(ctx.email, ctx.machineId, win);
   const pdf = await buildReportPdf({
     machineName: machineLabel(ctx.machine),
-    rangeDays: range,
+    windowLabel: win.label,
     generatedAt: new Date().toISOString().slice(0, 10),
     summary,
   });
-  const name = `vendai-${fileSlug(machineLabel(ctx.machine))}-${range}d.pdf`;
+  const name = `vendai-${fileSlug(machineLabel(ctx.machine))}-${win.slug}.pdf`;
 
   return new Response(Buffer.from(pdf), {
     headers: {

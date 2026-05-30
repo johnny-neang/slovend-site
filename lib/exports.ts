@@ -1,6 +1,7 @@
 import "server-only";
 import { dbConfigured, getSql, ensureSchema } from "@/lib/db";
 import { slotFromText } from "@/lib/nayax";
+import type { Win } from "@/lib/window";
 
 export type ExportRow = {
   occurred_at: string | null;
@@ -14,7 +15,7 @@ export type ExportRow = {
 export async function salesForExport(
   userKey: string,
   machineId: string,
-  days: number,
+  win: Win,
 ): Promise<ExportRow[]> {
   if (!dbConfigured() || !machineId) return [];
   await ensureSchema();
@@ -23,7 +24,8 @@ export async function salesForExport(
     select occurred_at, product, amount, currency, payment_method
     from sales
     where user_key = ${userKey} and machine_id = ${machineId}
-      and occurred_at >= now() - ${`${days} days`}::interval
+      and occurred_at >= ${win.fromIso}::timestamptz
+      and occurred_at <  ${win.toExclusiveIso}::timestamptz
     order by occurred_at desc nulls last
     limit 5000
   `) as {

@@ -1,5 +1,6 @@
 import "server-only";
 import { dbConfigured, getSql, ensureSchema } from "@/lib/db";
+import type { Win } from "@/lib/window";
 
 export type ReportSummary = {
   hasData: boolean;
@@ -26,12 +27,11 @@ const EMPTY: ReportSummary = {
 export async function reportSummary(
   userKey: string,
   machineId: string,
-  days: number,
+  win: Win,
 ): Promise<ReportSummary> {
   if (!dbConfigured() || !machineId) return EMPTY;
   await ensureSchema();
   const sql = getSql();
-  const since = `${days} days`;
 
   const totals = (await sql`
     select count(*)::int as vends,
@@ -39,7 +39,8 @@ export async function reportSummary(
            count(distinct date_trunc('day', occurred_at))::int as active_days
     from sales
     where user_key = ${userKey} and machine_id = ${machineId}
-      and occurred_at >= now() - ${since}::interval
+      and occurred_at >= ${win.fromIso}::timestamptz
+      and occurred_at <  ${win.toExclusiveIso}::timestamptz
   `) as { vends: number; revenue: number; active_days: number }[];
 
   const t = totals[0] ?? { vends: 0, revenue: 0, active_days: 0 };
@@ -51,7 +52,8 @@ export async function reportSummary(
            coalesce(sum(amount),0)::float as revenue
     from sales
     where user_key = ${userKey} and machine_id = ${machineId}
-      and occurred_at >= now() - ${since}::interval
+      and occurred_at >= ${win.fromIso}::timestamptz
+      and occurred_at <  ${win.toExclusiveIso}::timestamptz
     group by date_trunc('day', occurred_at)
     order by date_trunc('day', occurred_at)
   `) as { day: string; vends: number; revenue: number }[];
@@ -62,7 +64,8 @@ export async function reportSummary(
            coalesce(sum(amount),0)::float as revenue
     from sales
     where user_key = ${userKey} and machine_id = ${machineId}
-      and occurred_at >= now() - ${since}::interval
+      and occurred_at >= ${win.fromIso}::timestamptz
+      and occurred_at <  ${win.toExclusiveIso}::timestamptz
     group by 1 order by revenue desc limit 10
   `) as { product: string; vends: number; revenue: number }[];
 
@@ -70,7 +73,8 @@ export async function reportSummary(
     select coalesce(nullif(payment_method,''),'Unknown') as method, count(*)::int as n
     from sales
     where user_key = ${userKey} and machine_id = ${machineId}
-      and occurred_at >= now() - ${since}::interval
+      and occurred_at >= ${win.fromIso}::timestamptz
+      and occurred_at <  ${win.toExclusiveIso}::timestamptz
     group by 1 order by n desc
   `) as { method: string; n: number }[];
 
@@ -78,7 +82,8 @@ export async function reportSummary(
     select extract(hour from occurred_at)::int as hr, count(*)::int as n
     from sales
     where user_key = ${userKey} and machine_id = ${machineId}
-      and occurred_at >= now() - ${since}::interval
+      and occurred_at >= ${win.fromIso}::timestamptz
+      and occurred_at <  ${win.toExclusiveIso}::timestamptz
     group by 1 order by 1
   `) as { hr: number; n: number }[];
 

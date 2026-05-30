@@ -1,14 +1,10 @@
 import { auth } from "@/auth";
 import { getCtx, machineLabel } from "@/lib/dashboard";
 import { salesForExport, toCsv, fileSlug } from "@/lib/exports";
+import { resolveWindow } from "@/lib/window";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-function clampRange(v: string | null): number {
-  const n = Number(v);
-  return [7, 30, 90].includes(n) ? n : 30;
-}
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -18,10 +14,11 @@ export async function GET(req: Request) {
   if (!ctx.conn || !ctx.machine || !ctx.email)
     return new Response("Connect your Nayax account first.", { status: 400 });
 
-  const range = clampRange(new URL(req.url).searchParams.get("range"));
-  const rows = await salesForExport(ctx.email, ctx.machineId, range);
+  const sp = new URL(req.url).searchParams;
+  const win = resolveWindow({ range: sp.get("range"), from: sp.get("from"), to: sp.get("to") });
+  const rows = await salesForExport(ctx.email, ctx.machineId, win);
   const csv = `﻿${toCsv(rows)}`; // UTF-8 BOM so Excel reads it cleanly
-  const name = `vendai-${fileSlug(machineLabel(ctx.machine))}-${range}d.csv`;
+  const name = `vendai-${fileSlug(machineLabel(ctx.machine))}-${win.slug}.csv`;
 
   return new Response(csv, {
     headers: {

@@ -6,6 +6,7 @@ import DashError from "@/components/DashError";
 import { getLastSales, type Sale } from "@/lib/nayax";
 import { ingestSales } from "@/lib/ingest";
 import { reportSummary } from "@/lib/reports";
+import { resolveWindow } from "@/lib/window";
 
 export const metadata: Metadata = { title: "Reports · Vendai" };
 export const dynamic = "force-dynamic";
@@ -19,7 +20,7 @@ function money(n: number): string {
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ range?: string }>;
+  searchParams: Promise<{ range?: string; from?: string; to?: string }>;
 }) {
   const ctx = await getCtx();
   if (!ctx.conn) redirect("/dashboard");
@@ -32,7 +33,7 @@ export default async function ReportsPage({
     );
 
   const sp = await searchParams;
-  const range = RANGES.includes(Number(sp.range)) ? Number(sp.range) : 30;
+  const win = resolveWindow(sp);
 
   // Ingest-on-view: capture the latest recent sales every time Reports is opened
   // (Hobby plan only allows a daily cron, so this keeps history fresh as you use it).
@@ -41,7 +42,7 @@ export default async function ReportsPage({
     await ingestSales(ctx.email, ctx.machineId, sales).catch(() => 0);
   }
 
-  const r = ctx.email ? await reportSummary(ctx.email, ctx.machineId, range) : null;
+  const r = ctx.email ? await reportSummary(ctx.email, ctx.machineId, win) : null;
   const maxRev = Math.max(1, ...(r?.byDay.map((d) => d.revenue) ?? [1]));
   const maxHr = Math.max(1, ...(r?.hours.map((h) => h.n) ?? [1]));
   const hourMap = new Map((r?.hours ?? []).map((h) => [h.hr, h.n]));
@@ -64,18 +65,24 @@ export default async function ReportsPage({
                 <Link
                   key={d}
                   href={`/dashboard/reports?range=${d}`}
-                  className={d === range ? "active" : undefined}
+                  className={d === win.preset ? "active" : undefined}
                 >
                   {d}d
                 </Link>
               ))}
             </div>
+            <form className="date-range" method="get" action="/dashboard/reports">
+              <input type="date" name="from" defaultValue={win.fromDate} aria-label="From date" />
+              <span className="dash">–</span>
+              <input type="date" name="to" defaultValue={win.toDate} aria-label="To date" />
+              <button type="submit">Apply</button>
+            </form>
             {r?.hasData && (
               <div className="export-actions">
-                <a className="btn-export" href={`/api/export/sales?range=${range}`}>
+                <a className="btn-export" href={`/api/export/sales?${win.qs}`}>
                   ↓ CSV
                 </a>
-                <a className="btn-export" href={`/api/export/report?range=${range}`}>
+                <a className="btn-export" href={`/api/export/report?${win.qs}`}>
                   ↓ PDF
                 </a>
               </div>
@@ -98,12 +105,12 @@ export default async function ReportsPage({
             <div className="dash-mock" style={{ marginBottom: 20 }}>
               <div className="tiles tiles-4">
                 <div className="tile">
-                  <div className="l">Revenue · {range}d</div>
+                  <div className="l">Revenue · {win.short}</div>
                   <div className="n">{money(r.revenue)}</div>
                   <div className="d">{r.activeDays} active days</div>
                 </div>
                 <div className="tile">
-                  <div className="l">Vends · {range}d</div>
+                  <div className="l">Vends · {win.short}</div>
                   <div className="n">{r.vends}</div>
                   <div className="d">transactions</div>
                 </div>
@@ -140,7 +147,7 @@ export default async function ReportsPage({
 
             <div className="panel-grid">
               <div className="panel">
-                <div className="panel-h">Top products · {range}d</div>
+                <div className="panel-h">Top products · {win.short}</div>
                 <div className="rlist">
                   {r.topProducts.map((p, i) => (
                     <div className="rrow" key={i}>
@@ -153,7 +160,7 @@ export default async function ReportsPage({
                 </div>
               </div>
               <div className="panel">
-                <div className="panel-h">Payment mix · {range}d</div>
+                <div className="panel-h">Payment mix · {win.short}</div>
                 <div className="bars-h">
                   {r.payMix.map((p) => (
                     <div className="bar-h" key={p.method}>
