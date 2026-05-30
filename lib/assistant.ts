@@ -1,30 +1,14 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
+import { type NayaxConn } from "@/lib/nayax";
 import {
-  type NayaxConn,
-  listMachines,
-  getMachineStatus,
-  getLastSales,
-  getLastAlerts,
-  getMachineProducts,
-  saleAmount,
-  saleLabel,
-  saleTime,
-  salePayment,
-  alertText,
-  alertTime,
-  alertCategory,
-  productName,
-  productSlot,
-  productPrice,
-  productPar,
-  productLowStock,
-  productVendedOut,
-  statusOnline,
-  statusLastSeen,
-  statusSignal,
-  statusTemp,
-} from "@/lib/nayax";
+  type ToolCtx,
+  toolListMachines,
+  toolStatus,
+  toolSales,
+  toolAlerts,
+  toolInventory,
+} from "@/lib/tools";
 
 const MODEL = "claude-haiku-4-5";
 
@@ -72,85 +56,18 @@ async function executeTool(
   conn: NayaxConn,
   machineId: string,
 ): Promise<string> {
+  // Delegate to the shared read-only operations (lib/tools.ts) so the chat and
+  // the MCP server stay in lockstep. Live tools only use `conn`, so email="" is fine.
+  const ctx: ToolCtx = { email: "", conn };
   try {
-    if (name === "list_machines") {
-      const ms = await listMachines(conn);
-      return JSON.stringify(
-        ms.slice(0, 50).map((m) => ({ id: m.MachineID, name: m.MachineName, number: m.MachineNumber })),
-      );
-    }
-    if (name === "get_status") {
-      const s = await getMachineStatus(conn, machineId);
-      return JSON.stringify({
-        machineId,
-        online: statusOnline(s),
-        lastSeen: statusLastSeen(s),
-        signalRSSI: statusSignal(s),
-        temperature: statusTemp(s) || null,
-      });
-    }
-    if (name === "get_sales") {
-      const sales = await getLastSales(conn, machineId);
-      const revenue = sales.reduce((a, s) => a + saleAmount(s), 0);
-      const pay: Record<string, number> = {};
-      const prod: Record<string, { count: number; revenue: number }> = {};
-      for (const s of sales) {
-        const p = salePayment(s) || "Unknown";
-        pay[p] = (pay[p] ?? 0) + 1;
-        const n = saleLabel(s);
-        prod[n] = prod[n] ?? { count: 0, revenue: 0 };
-        prod[n].count += 1;
-        prod[n].revenue += saleAmount(s);
-      }
-      const topProducts = Object.entries(prod)
-        .sort((a, b) => b[1].revenue - a[1].revenue)
-        .slice(0, 8)
-        .map(([name, v]) => ({ name, ...v }));
-      const recent = sales.slice(0, 15).map((s) => ({
-        product: saleLabel(s),
-        amount: saleAmount(s),
-        payment: salePayment(s),
-        time: saleTime(s),
-      }));
-      return JSON.stringify({
-        machineId,
-        recentRevenue: Math.round(revenue * 100) / 100,
-        recentVends: sales.length,
-        paymentMix: pay,
-        topProducts,
-        recentTransactions: recent,
-      });
-    }
-    if (name === "get_alerts") {
-      const alerts = await getLastAlerts(conn, machineId);
-      return JSON.stringify({
-        machineId,
-        totalRecent: alerts.length,
-        recent: alerts.slice(0, 20).map((a) => ({
-          event: alertText(a),
-          category: alertCategory(a),
-          time: alertTime(a),
-        })),
-      });
-    }
-    if (name === "get_inventory") {
-      const products = await getMachineProducts(conn, machineId);
-      const rows = products.map((p) => ({
-        slot: productSlot(p),
-        product: productName(p) || null,
-        price: productPrice(p),
-        par: productPar(p),
-        needsRestock: productLowStock(p),
-        vendedOut: productVendedOut(p),
-      }));
-      return JSON.stringify({
-        machineId,
-        selections: rows.length,
-        needRestock: rows.filter((r) => r.needsRestock).length,
-        items: rows.slice(0, 60),
-      });
-    }
-    return `Unknown tool: ${name}`;
+    let data: unknown;
+    if (name === "list_machines") data = await toolListMachines(ctx);
+    else if (name === "get_status") data = await toolStatus(ctx, machineId);
+    else if (name === "get_sales") data = await toolSales(ctx, machineId);
+    else if (name === "get_alerts") data = await toolAlerts(ctx, machineId);
+    else if (name === "get_inventory") data = await toolInventory(ctx, machineId);
+    else return `Unknown tool: ${name}`;
+    return JSON.stringify(data);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "tool failed";
     console.warn(`[assistant] tool ${name} failed for machine ${machineId}: ${msg}`);
