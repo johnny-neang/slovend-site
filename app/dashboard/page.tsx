@@ -6,7 +6,6 @@ import {
   getMachineStatus,
   getLastSales,
   getMachineProducts,
-  saleAmount,
   salePayment,
   productLowStock,
   statusOnline,
@@ -17,6 +16,7 @@ import {
   type Product,
 } from "@/lib/nayax";
 import { ingestSales } from "@/lib/ingest";
+import { overviewTotals } from "@/lib/reports";
 
 export const metadata: Metadata = { title: "Dashboard · Slovend" };
 export const dynamic = "force-dynamic";
@@ -111,12 +111,15 @@ export default async function Overview({
     getMachineStatus(conn, id),
   ]);
 
-  // Accumulate sales history on each visit (Hobby plan: no frequent cron).
+  // Accumulate sales history on each visit, then read back defined windows so the
+  // headline numbers have a clear timeframe (Lynx "recent" has no fixed range).
   if (ctx.email) await ingestSales(ctx.email, id, sales).catch(() => 0);
+  const tot = ctx.email
+    ? await overviewTotals(ctx.email, id)
+    : { rev24: 0, v24: 0, rev7: 0, v7: 0 };
+  const avg7 = tot.v7 ? tot.rev7 / tot.v7 : 0;
 
-  const revenue = sales.reduce((s, x) => s + saleAmount(x), 0);
   const vends = sales.length;
-  const avg = vends ? revenue / vends : 0;
   const lowStock = products.filter(productLowStock);
   const online = statusOnline(status);
   const lastSeen = statusLastSeen(status);
@@ -128,7 +131,7 @@ export default async function Overview({
   const payRows = [...payMix.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
 
   const money = (n: number) =>
-    `$${n.toLocaleString(undefined, { maximumFractionDigits: n < 100 ? 2 : 0 })}`;
+    `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
     <section className="section dash-page">
@@ -147,18 +150,18 @@ export default async function Overview({
         <div className="dash-mock" style={{ marginBottom: 20 }}>
           <div className="tiles tiles-4">
             <div className="tile">
-              <div className="l">Recent revenue</div>
-              <div className="n">{revenue > 0 ? money(revenue) : "—"}</div>
-              <div className="d">last sales</div>
+              <div className="l">Last 24 hours</div>
+              <div className="n">{tot.rev24 > 0 ? money(tot.rev24) : "—"}</div>
+              <div className="d">{tot.v24} vends</div>
             </div>
             <div className="tile">
-              <div className="l">Recent vends</div>
-              <div className="n">{vends}</div>
-              <div className="d">transactions</div>
+              <div className="l">Last 7 days</div>
+              <div className="n">{tot.rev7 > 0 ? money(tot.rev7) : "—"}</div>
+              <div className="d">{tot.v7} vends</div>
             </div>
             <div className="tile">
-              <div className="l">Avg sale</div>
-              <div className="n">{avg > 0 ? money(avg) : "—"}</div>
+              <div className="l">Avg sale · 7d</div>
+              <div className="n">{avg7 > 0 ? money(avg7) : "—"}</div>
               <div className="d">per vend</div>
             </div>
             <Link className="tile tile-link" href="/dashboard/inventory">

@@ -98,3 +98,30 @@ export async function reportSummary(
     hours,
   };
 }
+
+/** Time-boxed totals for the overview: last 24 hours and last 7 days. */
+export async function overviewTotals(
+  userKey: string,
+  machineId: string,
+): Promise<{ rev24: number; v24: number; rev7: number; v7: number }> {
+  const zero = { rev24: 0, v24: 0, rev7: 0, v7: 0 };
+  if (!dbConfigured() || !machineId) return zero;
+  await ensureSchema();
+  const sql = getSql();
+  try {
+    const rows = (await sql`
+      select
+        coalesce(sum(amount) filter (where occurred_at >= now() - interval '24 hours'), 0)::float as rev24,
+        count(*) filter (where occurred_at >= now() - interval '24 hours')::int as v24,
+        coalesce(sum(amount), 0)::float as rev7,
+        count(*)::int as v7
+      from sales
+      where user_key = ${userKey} and machine_id = ${machineId}
+        and occurred_at >= now() - interval '7 days'
+    `) as { rev24: number; v24: number; rev7: number; v7: number }[];
+    return rows[0] ?? zero;
+  } catch (e) {
+    console.error("overviewTotals failed", e);
+    return zero;
+  }
+}

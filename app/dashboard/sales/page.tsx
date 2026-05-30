@@ -7,10 +7,11 @@ import {
   saleAmount,
   saleLabel,
   saleSlot,
-  saleTime,
+  saleLocalTime,
   salePayment,
   type Sale,
 } from "@/lib/nayax";
+import { getTaxSettings } from "@/lib/tax";
 
 export const metadata: Metadata = { title: "Sales · Vendai" };
 export const dynamic = "force-dynamic";
@@ -26,9 +27,18 @@ export default async function SalesPage() {
       />
     );
 
-  const sales = await getLastSales(ctx.conn, ctx.machineId).catch(
-    () => [] as Sale[],
-  );
+  const [sales, settings] = await Promise.all([
+    getLastSales(ctx.conn, ctx.machineId).catch(() => [] as Sale[]),
+    ctx.email
+      ? getTaxSettings(ctx.email, ctx.machineId)
+      : Promise.resolve({
+          ratePct: 0,
+          taxablePct: 100,
+          inclusive: true,
+          timezone: "America/Los_Angeles",
+        }),
+  ]);
+  const tz = settings.timezone;
   const revenue = sales.reduce((s, x) => s + saleAmount(x), 0);
 
   return (
@@ -62,7 +72,7 @@ export default async function SalesPage() {
                   <tr key={i}>
                     <td className="mono">{saleSlot(s)}</td>
                     <td>{saleLabel(s)}</td>
-                    <td className="muted">{saleTime(s) || "—"}</td>
+                    <td className="muted">{saleLocalTime(s, tz)}</td>
                     <td className="muted">{salePayment(s) || "—"}</td>
                     <td className="r amt">${saleAmount(s).toFixed(2)}</td>
                   </tr>

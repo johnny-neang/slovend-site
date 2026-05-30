@@ -225,6 +225,30 @@ export function slotFromText(text: string): string {
   return `${code >> 8}${String(code & 0xff).padStart(2, "0")}`;
 }
 
+/** Readable local date+time for a sale, converted from the GMT timestamp into `tz`.
+ * e.g. "May 29, 2026, 2:29 PM". Falls back to the raw string if unparseable. */
+export function saleLocalTime(s: Sale, tz: string): string {
+  const raw = saleOccurredAtGMT(s);
+  if (!raw) return "—";
+  const hasTz = /[zZ]$|[+-]\d\d:?\d\d$/.test(raw);
+  const d = new Date(hasTz ? raw : `${raw}Z`);
+  if (Number.isNaN(d.getTime())) return raw;
+  const opts: Intl.DateTimeFormatOptions = {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: tz,
+  };
+  try {
+    return new Intl.DateTimeFormat("en-US", opts).format(d);
+  } catch {
+    delete opts.timeZone;
+    return new Intl.DateTimeFormat("en-US", opts).format(d);
+  }
+}
+
 /** GMT timestamp string for storage/aggregation (vs saleTime which prefers local for display). */
 export function saleOccurredAtGMT(s: Sale): string {
   return pickStr(s, [

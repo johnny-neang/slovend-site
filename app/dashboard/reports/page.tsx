@@ -134,12 +134,16 @@ export default async function ReportsPage({
                 <div className="l">Daily revenue</div>
                 <div className="bars">
                   {r.byDay.map((d, i) => (
-                    <i
+                    <div
                       key={i}
-                      className={d.revenue === maxRev ? "hi" : undefined}
-                      style={{ height: `${Math.max(4, Math.round((d.revenue / maxRev) * 100))}%` }}
+                      className={`bcol${d.revenue === maxRev ? " hi" : ""}`}
                       title={`${d.day}: ${money(d.revenue)}`}
-                    />
+                    >
+                      <span
+                        className="bbar"
+                        style={{ height: `${Math.max(3, Math.round((d.revenue / maxRev) * 100))}%` }}
+                      />
+                    </div>
                   ))}
                 </div>
               </div>
