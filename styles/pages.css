@@ -388,14 +388,16 @@
 .range-tabs a:hover { color: var(--cherry); }
 .range-tabs a.active { color: #fff; background: var(--cherry); }
 .report-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.date-range { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 6px 4px 12px; background: var(--paper); }
-.date-range input[type="date"] { width: min-content; max-width: 124px; font-family: var(--label); font-size: 12px; font-weight: 700; color: var(--ink); border: none; background: transparent; padding: 5px 2px; color-scheme: light; }
-.date-range input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
-.date-range input[type="date"]::-webkit-calendar-picker-indicator { opacity: .55; padding: 2px; margin-left: 2px; }
-.date-range input[type="date"]:focus { outline: none; color: var(--cherry); }
+.date-range { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 5px; background: var(--paper); }
 .date-range .dash { color: var(--ink-dim); font-weight: 700; }
-.date-range button { font-family: var(--label); font-weight: 700; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: #fff; background: var(--cherry); border: none; border-radius: 999px; padding: 7px 14px; cursor: pointer; }
-.date-range button:hover { filter: brightness(1.05); }
+.dr-field-wrap { position: relative; display: inline-flex; }
+.dr-field { display: inline-flex; align-items: center; gap: 7px; font-family: var(--label); font-weight: 700; font-size: 13px; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 7px 13px; cursor: pointer; white-space: nowrap; transition: border-color .15s, color .15s; }
+.dr-field:hover { border-color: var(--cherry); color: var(--cherry); }
+.dr-field:focus-visible { outline: none; border-color: var(--cherry); color: var(--cherry); }
+.dr-cal { width: 14px; height: 14px; opacity: .55; flex: none; }
+.dr-native { position: absolute; bottom: 0; left: 12px; width: 1px; height: 1px; opacity: 0; pointer-events: none; border: 0; padding: 0; }
+.dr-apply { font-family: var(--label); font-weight: 700; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: #fff; background: var(--cherry); border: none; border-radius: 999px; padding: 9px 16px; cursor: pointer; }
+.dr-apply:hover { filter: brightness(1.05); }
 .export-actions { display: inline-flex; gap: 8px; }
 .machine-tz { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
 .machine-tz .mtz-label { font-family: var(--label); font-weight: 700; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); }

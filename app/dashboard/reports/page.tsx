@@ -9,6 +9,7 @@ import { reportSummary } from "@/lib/reports";
 import { resolveWindow } from "@/lib/window";
 import { getMachineTimezone } from "@/lib/settings";
 import BarChart, { type BarDatum } from "@/components/BarChart";
+import DateRangeForm from "@/components/DateRangeForm";
 
 export const metadata: Metadata = { title: "Reports · Vendai" };
 export const dynamic = "force-dynamic";
@@ -94,12 +95,7 @@ export default async function ReportsPage({
                 </Link>
               ))}
             </div>
-            <form className="date-range" method="get" action="/dashboard/reports">
-              <input type="date" name="from" defaultValue={win.fromDate} aria-label="From date" />
-              <span className="dash">–</span>
-              <input type="date" name="to" defaultValue={win.toDate} aria-label="To date" />
-              <button type="submit">Apply</button>
-            </form>
+            <DateRangeForm action="/dashboard/reports" from={win.fromDate} to={win.toDate} />
             {r?.hasData && (
               <div className="export-actions">
                 <a className="btn-export" href={`/api/export/sales?${win.qs}`}>

@@ -7,6 +7,7 @@ import { ingestSales } from "@/lib/ingest";
 import { resolveWindow } from "@/lib/window";
 import { getTaxSettings, saveTaxSettings, taxReport } from "@/lib/tax";
 import { getMachineTimezone } from "@/lib/settings";
+import DateRangeForm from "@/components/DateRangeForm";
 
 export const metadata: Metadata = { title: "Sales tax · Vendai" };
 export const dynamic = "force-dynamic";
@@ -69,12 +70,7 @@ export default async function TaxPage({
             <h1 className="serif-display">Sales tax</h1>
           </div>
           <div className="report-controls">
-            <form className="date-range" method="get" action="/dashboard/tax">
-              <input type="date" name="from" defaultValue={win.fromDate} aria-label="From date" />
-              <span className="dash">–</span>
-              <input type="date" name="to" defaultValue={win.toDate} aria-label="To date" />
-              <button type="submit">Apply</button>
-            </form>
+            <DateRangeForm action="/dashboard/tax" from={win.fromDate} to={win.toDate} />
             {rep?.hasData && (
               <div className="export-actions">
                 <a className="btn-export" href={`/api/export/tax?format=csv&${win.qs}`}>
