@@ -216,6 +216,15 @@ export function saleSlot(s: Sale): string {
   return `${row}${String(col).padStart(2, "0")}`;
 }
 
+/** Decode a slot from a stored product string like "Unknown(1028 = 1.00)". */
+export function slotFromText(text: string): string {
+  const m = (text || "").match(/\((-?\d+)\s*=/);
+  if (!m) return "—";
+  const code = parseInt(m[1], 10);
+  if (!Number.isFinite(code) || code <= 0) return "—";
+  return `${code >> 8}${String(code & 0xff).padStart(2, "0")}`;
+}
+
 /** GMT timestamp string for storage/aggregation (vs saleTime which prefers local for display). */
 export function saleOccurredAtGMT(s: Sale): string {
   return pickStr(s, [

@@ -58,16 +58,28 @@ export default async function ReportsPage({
             <div className="kicker">{machineLabel(ctx.machine)}</div>
             <h1 className="serif-display">Reports</h1>
           </div>
-          <div className="range-tabs">
-            {RANGES.map((d) => (
-              <Link
-                key={d}
-                href={`/dashboard/reports?range=${d}`}
-                className={d === range ? "active" : undefined}
-              >
-                {d}d
-              </Link>
-            ))}
+          <div className="report-controls">
+            <div className="range-tabs">
+              {RANGES.map((d) => (
+                <Link
+                  key={d}
+                  href={`/dashboard/reports?range=${d}`}
+                  className={d === range ? "active" : undefined}
+                >
+                  {d}d
+                </Link>
+              ))}
+            </div>
+            {r?.hasData && (
+              <div className="export-actions">
+                <a className="btn-export" href={`/api/export/sales?range=${range}`}>
+                  ↓ CSV
+                </a>
+                <a className="btn-export" href={`/api/export/report?range=${range}`}>
+                  ↓ PDF
+                </a>
+              </div>
+            )}
           </div>
         </div>
 
