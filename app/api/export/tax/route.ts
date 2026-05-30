@@ -3,6 +3,7 @@ import { getCtx, machineLabel } from "@/lib/dashboard";
 import { fileSlug } from "@/lib/exports";
 import { resolveWindow } from "@/lib/window";
 import { getTaxSettings, taxReport } from "@/lib/tax";
+import { getMachineTimezone } from "@/lib/settings";
 import { buildTaxPdf } from "@/lib/pdf";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +26,8 @@ export async function GET(req: Request) {
   const format = sp.get("format") === "pdf" ? "pdf" : "csv";
   const win = resolveWindow({ range: sp.get("range"), from: sp.get("from"), to: sp.get("to") });
   const settings = await getTaxSettings(ctx.email, ctx.machineId);
-  const rep = await taxReport(ctx.email, ctx.machineId, win, settings);
+  const tz = await getMachineTimezone(ctx.email, ctx.machineId);
+  const rep = await taxReport(ctx.email, ctx.machineId, win, settings, tz);
   const machine = machineLabel(ctx.machine);
   const base = `vendai-tax-${fileSlug(machine)}-${win.slug}`;
 
@@ -34,7 +36,7 @@ export async function GET(req: Request) {
       machineName: machine,
       windowLabel: win.label,
       generatedAt: new Date().toISOString().slice(0, 10),
-      timezone: settings.timezone,
+      timezone: tz,
       ratePct: settings.ratePct,
       taxablePct: settings.taxablePct,
       inclusive: settings.inclusive,
@@ -66,7 +68,7 @@ export async function GET(req: Request) {
   const lines: string[] = [];
   lines.push(`Vendai Sales Tax Summary — ${machine}`);
   lines.push(`Window:,${csvCell(win.label)}`);
-  lines.push(`Timezone:,${settings.timezone}`);
+  lines.push(`Timezone:,${tz}`);
   lines.push(
     `Basis:,${csvCell(`rate ${settings.ratePct}% · ${settings.taxablePct}% taxable · ${settings.inclusive ? "tax-inclusive" : "tax-exclusive"}`)}`,
   );

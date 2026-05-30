@@ -5,7 +5,8 @@ import DashError from "@/components/DashError";
 import { getLastSales, type Sale } from "@/lib/nayax";
 import { ingestSales } from "@/lib/ingest";
 import { resolveWindow } from "@/lib/window";
-import { getTaxSettings, saveTaxSettings, taxReport, ALLOWED_TZ } from "@/lib/tax";
+import { getTaxSettings, saveTaxSettings, taxReport } from "@/lib/tax";
+import { getMachineTimezone } from "@/lib/settings";
 
 export const metadata: Metadata = { title: "Sales tax · Vendai" };
 export const dynamic = "force-dynamic";
@@ -22,7 +23,6 @@ async function saveTaxSettingsAction(formData: FormData): Promise<void> {
     ratePct: Number(formData.get("ratePct") ?? 0),
     taxablePct: Number(formData.get("taxablePct") ?? 100),
     inclusive: formData.get("inclusive") === "on",
-    timezone: String(formData.get("timezone") ?? "America/Los_Angeles"),
   });
   const qs = String(formData.get("qs") ?? "");
   redirect(`/dashboard/tax${qs ? `?${qs}` : ""}`);
@@ -54,8 +54,11 @@ export default async function TaxPage({
 
   const s = ctx.email
     ? await getTaxSettings(ctx.email, ctx.machineId)
-    : { ratePct: 0, taxablePct: 100, inclusive: true, timezone: "America/Los_Angeles" };
-  const rep = ctx.email ? await taxReport(ctx.email, ctx.machineId, win, s) : null;
+    : { ratePct: 0, taxablePct: 100, inclusive: true };
+  const tz = ctx.email
+    ? await getMachineTimezone(ctx.email, ctx.machineId)
+    : "America/Los_Angeles";
+  const rep = ctx.email ? await taxReport(ctx.email, ctx.machineId, win, s, tz) : null;
 
   return (
     <section className="section dash-page">
@@ -118,14 +121,8 @@ export default async function TaxPage({
             </div>
           </div>
           <div className="tx-field">
-            <label htmlFor="timezone">Timezone</label>
-            <select id="timezone" name="timezone" defaultValue={s.timezone}>
-              {ALLOWED_TZ.map((tz) => (
-                <option key={tz} value={tz}>
-                  {tz}
-                </option>
-              ))}
-            </select>
+            <span className="tx-static-label">Timezone</span>
+            <span className="tx-static">{tz.replace(/_/g, " ")}</span>
           </div>
           <label className="tx-check">
             <input type="checkbox" name="inclusive" defaultChecked={s.inclusive} />
@@ -218,7 +215,7 @@ export default async function TaxPage({
 
             <p className="note" style={{ textAlign: "left", marginTop: 14 }}>
               {rep.coveredFrom && rep.coveredTo
-                ? `Based on ${rep.txns} transactions recorded from ${rep.coveredFrom} to ${rep.coveredTo} (${s.timezone}). `
+                ? `Based on ${rep.txns} transactions recorded from ${rep.coveredFrom} to ${rep.coveredTo} (${tz.replace(/_/g, " ")} — set on Overview). `
                 : ""}
               Estimate to assist filing, based on your configured rate and taxable share. Not tax
               advice — verify with the CDTFA.

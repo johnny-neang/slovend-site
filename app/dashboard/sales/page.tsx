@@ -11,7 +11,7 @@ import {
   salePayment,
   type Sale,
 } from "@/lib/nayax";
-import { getTaxSettings } from "@/lib/tax";
+import { getMachineTimezone } from "@/lib/settings";
 
 export const metadata: Metadata = { title: "Sales · Vendai" };
 export const dynamic = "force-dynamic";
@@ -27,18 +27,12 @@ export default async function SalesPage() {
       />
     );
 
-  const [sales, settings] = await Promise.all([
+  const [sales, tz] = await Promise.all([
     getLastSales(ctx.conn, ctx.machineId).catch(() => [] as Sale[]),
     ctx.email
-      ? getTaxSettings(ctx.email, ctx.machineId)
-      : Promise.resolve({
-          ratePct: 0,
-          taxablePct: 100,
-          inclusive: true,
-          timezone: "America/Los_Angeles",
-        }),
+      ? getMachineTimezone(ctx.email, ctx.machineId)
+      : Promise.resolve("America/Los_Angeles"),
   ]);
-  const tz = settings.timezone;
   const revenue = sales.reduce((s, x) => s + saleAmount(x), 0);
 
   return (

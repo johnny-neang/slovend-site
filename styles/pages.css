@@ -397,6 +397,12 @@
 .date-range button { font-family: var(--label); font-weight: 700; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: #fff; background: var(--cherry); border: none; border-radius: 999px; padding: 7px 14px; cursor: pointer; }
 .date-range button:hover { filter: brightness(1.05); }
 .export-actions { display: inline-flex; gap: 8px; }
+.machine-tz { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.machine-tz .mtz-label { font-family: var(--label); font-weight: 700; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); }
+.machine-tz .mtz-hint { font-family: var(--body); font-size: 13px; color: var(--ink-dim); }
+.tz-form { display: inline-flex; }
+.tz-form select { font-family: var(--label); font-weight: 700; font-size: 13px; color: var(--ink); border: 1px solid var(--line); border-radius: 9px; padding: 8px 12px; background: #fff; min-width: 210px; color-scheme: light; cursor: pointer; }
+.tz-form select:focus { outline: none; border-color: var(--cherry); }
 .tax-settings { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 18px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); margin-bottom: 18px; }
 .tx-field { display: flex; flex-direction: column; gap: 6px; }
 .tx-field > label { font-family: var(--label); font-weight: 700; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); }
@@ -405,6 +411,8 @@
 .tax-settings select { width: auto; min-width: 200px; }
 .tx-field input[type="number"]:focus, .tax-settings select:focus { outline: none; border-color: var(--cherry); }
 .tx-input span { font-family: var(--label); font-weight: 700; color: var(--ink-dim); }
+.tx-static-label { font-family: var(--label); font-weight: 700; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); }
+.tx-static { font-family: var(--label); font-weight: 700; font-size: 14px; color: var(--ink); padding: 8px 0; }
 .tx-check { display: inline-flex; align-items: center; gap: 8px; font-family: var(--body); font-size: 14px; color: var(--ink); padding-bottom: 9px; }
 .tx-check input { width: 16px; height: 16px; accent-color: var(--cherry); }
 .tx-save { margin-left: auto; font-family: var(--label); font-weight: 700; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: #fff; background: var(--ink); border: none; border-radius: 999px; padding: 11px 22px; cursor: pointer; }

@@ -1,33 +1,20 @@
 import "server-only";
 import { dbConfigured, getSql, ensureSchema } from "@/lib/db";
+import { cleanTz } from "@/lib/settings";
 import type { Win } from "@/lib/window";
-
-export const ALLOWED_TZ = [
-  "America/Los_Angeles",
-  "America/Phoenix",
-  "America/Denver",
-  "America/Chicago",
-  "America/New_York",
-  "UTC",
-] as const;
 
 export type TaxSettings = {
   ratePct: number;
   taxablePct: number;
   inclusive: boolean;
-  timezone: string;
 };
 
 const DEFAULTS: TaxSettings = {
   ratePct: 0,
   taxablePct: 100,
   inclusive: true,
-  timezone: "America/Los_Angeles",
 };
 
-function cleanTz(tz: string): string {
-  return (ALLOWED_TZ as readonly string[]).includes(tz) ? tz : DEFAULTS.timezone;
-}
 function clampPct(n: number, max: number): number {
   if (!Number.isFinite(n) || n < 0) return 0;
   return Math.min(n, max);
@@ -39,16 +26,15 @@ export async function getTaxSettings(userKey: string, machineId: string): Promis
   const sql = getSql();
   try {
     const rows = (await sql`
-      select rate_pct, taxable_pct, inclusive, timezone
+      select rate_pct, taxable_pct, inclusive
       from tax_settings where user_key = ${userKey} and machine_id = ${machineId}
-    `) as { rate_pct: number; taxable_pct: number; inclusive: boolean; timezone: string }[];
+    `) as { rate_pct: number; taxable_pct: number; inclusive: boolean }[];
     if (!rows.length) return DEFAULTS;
     const r = rows[0];
     return {
       ratePct: Number(r.rate_pct ?? 0),
       taxablePct: Number(r.taxable_pct ?? 100),
       inclusive: r.inclusive ?? true,
-      timezone: cleanTz(r.timezone ?? DEFAULTS.timezone),
     };
   } catch (e) {
     console.error("getTaxSettings failed", e);
@@ -66,15 +52,13 @@ export async function saveTaxSettings(
   const sql = getSql();
   const rate = clampPct(s.ratePct, 100);
   const taxable = clampPct(s.taxablePct, 100);
-  const tz = cleanTz(s.timezone);
   await sql`
-    insert into tax_settings (user_key, machine_id, rate_pct, taxable_pct, inclusive, timezone, updated_at)
-    values (${userKey}, ${machineId}, ${rate}, ${taxable}, ${s.inclusive}, ${tz}, now())
+    insert into tax_settings (user_key, machine_id, rate_pct, taxable_pct, inclusive, updated_at)
+    values (${userKey}, ${machineId}, ${rate}, ${taxable}, ${s.inclusive}, now())
     on conflict (user_key, machine_id) do update set
       rate_pct = excluded.rate_pct,
       taxable_pct = excluded.taxable_pct,
       inclusive = excluded.inclusive,
-      timezone = excluded.timezone,
       updated_at = now()
   `;
 }
@@ -140,11 +124,12 @@ export async function taxReport(
   machineId: string,
   win: Win,
   s: TaxSettings,
+  timezone: string,
 ): Promise<TaxReport> {
   if (!dbConfigured() || !machineId) return EMPTY_REPORT;
   await ensureSchema();
   const sql = getSql();
-  const tz = cleanTz(s.timezone);
+  const tz = cleanTz(timezone);
   const from = win.fromDate;
   const to = win.toDate;
 

@@ -68,6 +68,15 @@ export function ensureSchema(): Promise<void> {
       `;
       await sql`create index if not exists sales_machine_time_idx on sales (user_key, machine_id, occurred_at desc)`;
       await sql`
+        create table if not exists machine_settings (
+          user_key    text not null,
+          machine_id  text not null,
+          timezone    text not null default 'America/Los_Angeles',
+          updated_at  timestamptz not null default now(),
+          primary key (user_key, machine_id)
+        )
+      `;
+      await sql`
         create table if not exists tax_settings (
           user_key    text not null,
           machine_id  text not null,

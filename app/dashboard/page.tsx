@@ -15,11 +15,22 @@ import {
   type Sale,
   type Product,
 } from "@/lib/nayax";
+import { revalidatePath } from "next/cache";
 import { ingestSales } from "@/lib/ingest";
 import { overviewTotals } from "@/lib/reports";
+import { getMachineTimezone, saveMachineTimezone, ALLOWED_TZ } from "@/lib/settings";
+import TimezoneSelect from "@/components/TimezoneSelect";
 
 export const metadata: Metadata = { title: "Dashboard · Slovend" };
 export const dynamic = "force-dynamic";
+
+async function saveTimezoneAction(formData: FormData): Promise<void> {
+  "use server";
+  const ctx = await getCtx();
+  if (!ctx.email || !ctx.machineId) return;
+  await saveMachineTimezone(ctx.email, ctx.machineId, String(formData.get("timezone") ?? ""));
+  revalidatePath("/dashboard");
+}
 
 export default async function Overview({
   searchParams,
@@ -118,6 +129,7 @@ export default async function Overview({
     ? await overviewTotals(ctx.email, id)
     : { rev24: 0, v24: 0, rev7: 0, v7: 0 };
   const avg7 = tot.v7 ? tot.rev7 / tot.v7 : 0;
+  const tz = ctx.email ? await getMachineTimezone(ctx.email, id) : "America/Los_Angeles";
 
   const vends = sales.length;
   const lowStock = products.filter(productLowStock);
@@ -144,6 +156,14 @@ export default async function Overview({
           <span className={`status ${online === false ? "off" : "live"}`}>
             <span className="dot" />
             {online === false ? "Offline" : online === true ? "Online" : "Connected"}
+          </span>
+        </div>
+
+        <div className="machine-tz">
+          <span className="mtz-label">Timezone</span>
+          <TimezoneSelect value={tz} options={ALLOWED_TZ} action={saveTimezoneAction} />
+          <span className="mtz-hint">
+            Global for this machine — used for sales times, reports &amp; tax filing
           </span>
         </div>
 
