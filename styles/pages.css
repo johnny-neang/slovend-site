@@ -389,7 +389,7 @@
 .range-tabs a.active { color: #fff; background: var(--cherry); }
 .report-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .date-range { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 5px; background: var(--paper); }
-.date-range .dash { color: var(--ink-dim); font-weight: 700; }
+.dr-dash { display: inline; color: var(--ink-dim); font-weight: 700; }
 .dr-field-wrap { position: relative; display: inline-flex; }
 .dr-field { display: inline-flex; align-items: center; gap: 7px; font-family: var(--label); font-weight: 700; font-size: 13px; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 7px 13px; cursor: pointer; white-space: nowrap; transition: border-color .15s, color .15s; }
 .dr-field:hover { border-color: var(--cherry); color: var(--cherry); }

@@ -94,7 +94,7 @@ export default function DateRangeForm({
   return (
     <form className="date-range" method="get" action={action}>
       <DateField name="from" label="From date" value={f} onChange={setF} />
-      <span className="dash">–</span>
+      <span className="dr-dash">–</span>
       <DateField name="to" label="To date" value={t} onChange={setT} />
       <button type="submit" className="dr-apply">
         Apply
