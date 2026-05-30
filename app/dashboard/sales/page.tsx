@@ -6,6 +6,7 @@ import {
   getLastSales,
   saleAmount,
   saleLabel,
+  saleSlot,
   saleTime,
   salePayment,
   type Sale,
@@ -48,6 +49,7 @@ export default async function SalesPage() {
           <table className="dtable">
             <thead>
               <tr>
+                <th>Slot</th>
                 <th>Product</th>
                 <th>Time</th>
                 <th>Payment</th>
@@ -58,6 +60,7 @@ export default async function SalesPage() {
               {sales.length ? (
                 sales.map((s, i) => (
                   <tr key={i}>
+                    <td className="mono">{saleSlot(s)}</td>
                     <td>{saleLabel(s)}</td>
                     <td className="muted">{saleTime(s) || "—"}</td>
                     <td className="muted">{salePayment(s) || "—"}</td>
@@ -66,7 +69,7 @@ export default async function SalesPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="muted">
+                  <td colSpan={5} className="muted">
                     No recent sales returned by Lynx.
                   </td>
                 </tr>

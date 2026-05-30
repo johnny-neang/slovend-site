@@ -202,6 +202,20 @@ export function saleTxnId(s: Sale): string {
     "ID",
   ]);
 }
+/** Vending slot for a sale. Lynx embeds the MDB code either in a field or in the
+ * ProductName (e.g. "Unknown(1028 = 1.00)"); decode it like productSlot. */
+export function saleSlot(s: Sale): string {
+  let code = pickNum(s, ["MDBCode", "MDB", "SelectionCode", "Selection"]);
+  if (code === null) {
+    const m = pickStr(s, ["ProductName"]).match(/\((-?\d+)\s*=/);
+    if (m) code = parseInt(m[1], 10);
+  }
+  if (code === null || code <= 0) return "—";
+  const row = code >> 8;
+  const col = code & 0xff;
+  return `${row}${String(col).padStart(2, "0")}`;
+}
+
 /** GMT timestamp string for storage/aggregation (vs saleTime which prefers local for display). */
 export function saleOccurredAtGMT(s: Sale): string {
   return pickStr(s, [
