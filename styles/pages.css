@@ -380,11 +380,12 @@
 .range-tabs a:hover { color: var(--cherry); }
 .range-tabs a.active { color: #fff; background: var(--cherry); }
 .report-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.date-range { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--line); border-radius: 999px; padding: 3px 5px 3px 8px; background: var(--paper); }
-.date-range input[type="date"] { box-sizing: content-box; width: 92px; font-family: var(--label); font-size: 12px; font-weight: 700; color: var(--ink); border: none; background: transparent; padding: 5px 4px; color-scheme: light; }
-.date-range input[type="date"]::-webkit-calendar-picker-indicator { margin: 0; padding: 0; opacity: .5; }
+.date-range { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 6px 4px 12px; background: var(--paper); }
+.date-range input[type="date"] { width: min-content; max-width: 124px; font-family: var(--label); font-size: 12px; font-weight: 700; color: var(--ink); border: none; background: transparent; padding: 5px 2px; color-scheme: light; }
+.date-range input[type="date"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+.date-range input[type="date"]::-webkit-calendar-picker-indicator { opacity: .55; padding: 2px; margin-left: 2px; }
 .date-range input[type="date"]:focus { outline: none; color: var(--cherry); }
-.date-range .dash { color: var(--ink-dim); font-weight: 700; padding: 0 1px; }
+.date-range .dash { color: var(--ink-dim); font-weight: 700; }
 .date-range button { font-family: var(--label); font-weight: 700; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: #fff; background: var(--cherry); border: none; border-radius: 999px; padding: 7px 14px; cursor: pointer; }
 .date-range button:hover { filter: brightness(1.05); }
 .export-actions { display: inline-flex; gap: 8px; }
