@@ -12,6 +12,7 @@ const ITEMS = [
   { href: "/dashboard/tax", label: "Tax" },
   { href: "/dashboard/chat", label: "Chat" },
   { href: "/dashboard/mcp", label: "MCP" },
+  { href: "/dashboard/api", label: "API" },
 ];
 
 export default function DashboardNav() {

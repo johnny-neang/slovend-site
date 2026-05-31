@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { saveConnection, deleteConnection } from "@/lib/connections";
+import { saveConnection, deleteConnection, getConnection } from "@/lib/connections";
 import { setSelectedMachineCookie } from "@/lib/selection";
 
 async function requireUserKey(): Promise<string> {
@@ -30,6 +30,26 @@ export async function disconnectNayax() {
   const key = await requireUserKey();
   await deleteConnection(key);
   redirect("/dashboard");
+}
+
+/** Update credentials from the API page. A blank token keeps the current one,
+ * so the base URL / default machine can be changed without re-entering the key. */
+export async function updateApiCredentials(formData: FormData) {
+  const key = await requireUserKey();
+  const existing = await getConnection(key);
+  const base =
+    String(formData.get("base") ?? "").trim() || existing?.base || "https://lynx.nayax.com";
+  const token = String(formData.get("token") ?? "").trim() || existing?.token || "";
+  const machineId = String(formData.get("machineId") ?? "").trim();
+  if (!token) redirect("/dashboard/api?error=token");
+  await saveConnection(key, { base, token, machineId });
+  redirect("/dashboard/api?saved=1");
+}
+
+export async function disconnectApi() {
+  const key = await requireUserKey();
+  await deleteConnection(key);
+  redirect("/dashboard/api");
 }
 
 export async function setSelectedMachine(formData: FormData) {

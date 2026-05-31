@@ -434,6 +434,22 @@
 .tool-name { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--cherry); flex: none; min-width: 168px; }
 .tool-desc { font-family: var(--body); font-size: 14px; color: var(--ink-dim); line-height: 1.5; flex: 1; min-width: 220px; }
 .mcp-notes { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-family: var(--body); font-size: 14.5px; line-height: 1.55; color: var(--ink); }
+.api-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; }
+.api-field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 220px; }
+.api-field label { font-family: var(--label); font-weight: 700; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); }
+.api-field input { font-family: var(--label); font-weight: 600; font-size: 14px; color: var(--ink); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; background: #fff; color-scheme: light; }
+.api-field input:focus { outline: none; border-color: var(--cherry); }
+.api-cur { font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--ink-faint); font-size: 11px; font-family: var(--mono); }
+.api-saved { font-family: var(--body); font-size: 14px; color: #2f8f4e; margin: 0 0 12px; }
+.api-disconnect { font-family: var(--label); font-weight: 700; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--cherry); background: none; border: none; padding: 0; cursor: pointer; }
+.api-disconnect:hover { text-decoration: underline; }
+.acc { font-family: var(--label); font-weight: 700; font-size: 11px; letter-spacing: .03em; padding: 3px 9px; border-radius: 999px; display: inline-block; }
+.acc-ok { background: rgba(47,143,78,.14); color: #2f8f4e; }
+.acc-forbidden { background: rgba(194,85,74,.16); color: #c2554a; }
+.acc-unauthorized, .acc-error, .acc-missing { background: rgba(24,21,19,.08); color: var(--ink-dim); }
+.acc-untested { background: rgba(24,21,19,.06); color: var(--ink-faint); }
+.type-read { font-family: var(--label); font-weight: 700; font-size: 11px; letter-spacing: .04em; color: #2f8f4e; text-transform: uppercase; }
+.type-write { font-family: var(--label); font-weight: 700; font-size: 11px; letter-spacing: .04em; color: #c2554a; text-transform: uppercase; }
 tr.tx-total td { font-family: var(--label); font-weight: 800; border-top: 2px solid var(--line); background: var(--paper); }
 .btn-export { font-family: var(--label); font-weight: 700; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; transition: color .15s, border-color .15s, background .15s; }
 .btn-export:hover { color: #fff; background: var(--cherry); border-color: var(--cherry); }

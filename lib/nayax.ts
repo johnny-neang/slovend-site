@@ -55,6 +55,29 @@ function asArray<T>(data: unknown): T[] {
   return [];
 }
 
+/** Probe an endpoint with the caller's token and return the raw HTTP status
+ * (Bearer first, then raw-token fallback). Used by the API-access page to show
+ * which endpoints a user's Nayax token can reach. Never throws. */
+export async function probeEndpoint(conn: NayaxConn, path: string): Promise<number> {
+  const base = conn.base.replace(/\/$/, "");
+  const url = `${base}${path}`;
+  try {
+    let res = await fetch(url, {
+      headers: { Authorization: `Bearer ${conn.token}`, accept: "application/json" },
+      cache: "no-store",
+    });
+    if (res.status === 401 || res.status === 403) {
+      res = await fetch(url, {
+        headers: { Authorization: conn.token, accept: "application/json" },
+        cache: "no-store",
+      });
+    }
+    return res.status;
+  } catch {
+    return 0;
+  }
+}
+
 /* ----------------------------- endpoints ----------------------------- */
 
 export async function listMachines(conn: NayaxConn): Promise<Machine[]> {
