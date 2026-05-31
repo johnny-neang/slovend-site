@@ -1,19 +1,11 @@
 import type { Metadata } from "next";
 import { getCtx } from "@/lib/dashboard";
-import { probeReadEndpoints, WRITE_CAPABILITIES, type Access } from "@/lib/api-status";
+import { WRITE_CAPABILITIES } from "@/lib/api-status";
 import { updateApiCredentials, disconnectApi } from "../actions";
+import AccessTester from "@/components/AccessTester";
 
 export const metadata: Metadata = { title: "API · Vendai" };
 export const dynamic = "force-dynamic";
-
-const ACCESS_LABEL: Record<Access, string> = {
-  ok: "Accessible",
-  forbidden: "No access",
-  unauthorized: "Unauthorized",
-  missing: "Not found",
-  error: "Unreachable",
-  untested: "—",
-};
 
 export default async function ApiPage({
   searchParams,
@@ -23,7 +15,6 @@ export default async function ApiPage({
   const ctx = await getCtx();
   const sp = await searchParams;
   const conn = ctx.conn;
-  const reads = conn ? await probeReadEndpoints(conn) : [];
   const maskedToken = conn ? `••••••••${conn.token.slice(-4)}` : "";
 
   return (
@@ -95,40 +86,7 @@ export default async function ApiPage({
 
         <div className="panel" style={{ marginBottom: 20 }}>
           <div className="panel-h">Read endpoints · your live access</div>
-          {conn ? (
-            <div className="table-card" style={{ border: "none" }}>
-              <table className="dtable">
-                <thead>
-                  <tr>
-                    <th>Endpoint</th>
-                    <th>Method</th>
-                    <th>Type</th>
-                    <th>Your access</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reads.map((r) => (
-                    <tr key={r.key}>
-                      <td>
-                        {r.label}
-                        {r.note ? <span className="muted"> · {r.note}</span> : null}
-                      </td>
-                      <td className="mono">{r.method}</td>
-                      <td>
-                        <span className="type-read">Read</span>
-                      </td>
-                      <td>
-                        <span className={`acc acc-${r.access}`}>{ACCESS_LABEL[r.access]}</span>
-                        {r.code ? <span className="muted mono"> {r.code}</span> : null}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="muted">Add your API token above to test which endpoints you can reach.</p>
-          )}
+          <AccessTester connected={Boolean(conn)} />
         </div>
 
         <div className="panel">

@@ -450,6 +450,9 @@
 .acc-untested { background: rgba(24,21,19,.06); color: var(--ink-faint); }
 .type-read { font-family: var(--label); font-weight: 700; font-size: 11px; letter-spacing: .04em; color: #2f8f4e; text-transform: uppercase; }
 .type-write { font-family: var(--label); font-weight: 700; font-size: 11px; letter-spacing: .04em; color: #c2554a; text-transform: uppercase; }
+.access-bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.access-bar .muted { font-family: var(--body); font-size: 14px; }
+.tx-save:disabled { opacity: .5; cursor: default; }
 tr.tx-total td { font-family: var(--label); font-weight: 800; border-top: 2px solid var(--line); background: var(--paper); }
 .btn-export { font-family: var(--label); font-weight: 700; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; transition: color .15s, border-color .15s, background .15s; }
 .btn-export:hover { color: #fff; background: var(--cherry); border-color: var(--cherry); }

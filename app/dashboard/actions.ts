@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { saveConnection, deleteConnection, getConnection } from "@/lib/connections";
 import { setSelectedMachineCookie } from "@/lib/selection";
+import { probeReadEndpoints, type AccessResult } from "@/lib/api-status";
 
 async function requireUserKey(): Promise<string> {
   const session = await auth();
@@ -50,6 +51,20 @@ export async function disconnectApi() {
   const key = await requireUserKey();
   await deleteConnection(key);
   redirect("/dashboard/api");
+}
+
+/** On-demand probe of read endpoints for the API page's "Test access" button. */
+export async function testAccess(_prev: AccessResult, _formData: FormData): Promise<AccessResult> {
+  const session = await auth();
+  const email = session?.user?.email?.toLowerCase();
+  if (!email) return { ran: true, rows: [], error: "Not signed in." };
+  const conn = await getConnection(email);
+  if (!conn) return { ran: true, rows: [], error: "No Nayax connection — add your token above first." };
+  try {
+    return { ran: true, rows: await probeReadEndpoints(conn) };
+  } catch (e) {
+    return { ran: true, rows: [], error: e instanceof Error ? e.message : "Probe failed." };
+  }
 }
 
 export async function setSelectedMachine(formData: FormData) {

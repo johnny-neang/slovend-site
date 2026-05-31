@@ -13,6 +13,9 @@ export type EndpointRow = {
   note?: string;
 };
 
+/** Result returned by the "Test access" server action (drives <AccessTester>). */
+export type AccessResult = { ran: boolean; rows: EndpointRow[]; error?: string };
+
 function classify(code: number): Access {
   if (code >= 200 && code < 300) return "ok";
   if (code === 403) return "forbidden";
