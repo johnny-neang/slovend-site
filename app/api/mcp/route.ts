@@ -2,6 +2,7 @@ import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { getConnection } from "@/lib/connections";
 import { READ_TOOLS, type ToolArgs, type ToolCtx } from "@/lib/tools";
 import { verifyToken } from "@/lib/mcp-auth";
+import { logMcpCall } from "@/lib/mcp-activity";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,6 +20,11 @@ function emailFrom(extra: unknown): string | null {
   return typeof e === "string" && e ? e : null;
 }
 
+function clientIdFrom(extra: unknown): string {
+  const c = (extra as { authInfo?: { clientId?: unknown } })?.authInfo?.clientId;
+  return typeof c === "string" && c ? c : "unknown";
+}
+
 const base = createMcpHandler(
   (server) => {
     for (const tool of READ_TOOLS) {
@@ -33,6 +39,7 @@ const base = createMcpHandler(
         }
         try {
           const data = await tool.run({ email, conn } as ToolCtx, args);
+          void logMcpCall(email, tool.name, clientIdFrom(extra));
           return { content: [{ type: "text" as const, text: JSON.stringify(data) }] };
         } catch (e) {
           return errText(e instanceof Error ? e.message : "tool failed");

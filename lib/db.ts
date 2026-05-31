@@ -88,6 +88,16 @@ export function ensureSchema(): Promise<void> {
           primary key (user_key, machine_id)
         )
       `;
+      await sql`
+        create table if not exists mcp_activity (
+          id         bigserial primary key,
+          user_key   text not null,
+          tool       text not null,
+          client_id  text,
+          created_at timestamptz not null default now()
+        )
+      `;
+      await sql`create index if not exists mcp_activity_user_idx on mcp_activity (user_key, created_at desc)`;
     })();
   }
   return _schema;

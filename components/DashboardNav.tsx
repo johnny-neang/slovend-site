@@ -11,6 +11,7 @@ const ITEMS = [
   { href: "/dashboard/reports", label: "Reports" },
   { href: "/dashboard/tax", label: "Tax" },
   { href: "/dashboard/chat", label: "Chat" },
+  { href: "/dashboard/mcp", label: "MCP" },
 ];
 
 export default function DashboardNav() {
