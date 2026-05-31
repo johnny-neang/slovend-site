@@ -47,6 +47,7 @@ const base = createMcpHandler(
 const handler = withMcpAuth(base, verifyToken, {
   required: true,
   resourceMetadataPath: "/.well-known/oauth-protected-resource",
+  ...(process.env.MCP_RESOURCE_URL ? { resourceUrl: process.env.MCP_RESOURCE_URL } : {}),
 });
 
 export { handler as GET, handler as POST, handler as DELETE };
