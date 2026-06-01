@@ -68,6 +68,9 @@ export default function SiteHeader() {
                     <Link href="/dashboard" onClick={() => setMenu(false)}>
                       Dashboard
                     </Link>
+                    <Link href="/settings" onClick={() => setMenu(false)}>
+                      Settings
+                    </Link>
                     <button onClick={() => signOut({ callbackUrl: "/" })}>
                       Sign out
                     </button>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { testAccess } from "@/app/dashboard/actions";
+import { testAccess } from "@/app/settings/actions";
 import type { Access, AccessResult } from "@/lib/api-status";
 
 const ACCESS_LABEL: Record<Access, string> = {

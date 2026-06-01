@@ -453,6 +453,20 @@
 .access-bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .access-bar .muted { font-family: var(--body); font-size: 14px; }
 .tx-save:disabled { opacity: .5; cursor: default; }
+.account-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.account-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 1px solid var(--line); }
+.account-avatar-blank { display: flex; align-items: center; justify-content: center; background: var(--ink); color: var(--paper); font-family: var(--display); font-size: 24px; }
+.account-id { display: flex; flex-direction: column; gap: 3px; }
+.account-name { font-family: var(--label); font-weight: 700; font-size: 18px; color: var(--ink); }
+.account-email { font-family: var(--mono); font-size: 13px; color: var(--ink-dim); }
+.account-prov { font-family: var(--label); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); margin-top: 2px; }
+.danger-zone { border-color: rgba(194,85,74,.4); }
+.danger-h { color: #c2554a; }
+.danger-form { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.danger-form input { font-family: var(--label); font-weight: 600; font-size: 14px; color: var(--ink); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; background: #fff; min-width: 240px; color-scheme: light; }
+.danger-form input:focus { outline: none; border-color: #c2554a; }
+.danger-btn { font-family: var(--label); font-weight: 700; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: #fff; background: #c2554a; border: none; border-radius: 999px; padding: 11px 20px; cursor: pointer; }
+.danger-btn:hover { background: #a8453c; }
 tr.tx-total td { font-family: var(--label); font-weight: 800; border-top: 2px solid var(--line); background: var(--paper); }
 .btn-export { font-family: var(--label); font-weight: 700; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; transition: color .15s, border-color .15s, background .15s; }
 .btn-export:hover { color: #fff; background: var(--cherry); border-color: var(--cherry); }
