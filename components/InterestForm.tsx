@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { submitInterest } from "@/app/(marketing)/actions";
 
 export default function InterestForm() {
   const [done, setDone] = useState(false);
   const [err, setErr] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
 
-  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
     const fd = new FormData(form);
@@ -18,23 +21,20 @@ export default function InterestForm() {
       return;
     }
     setErr(false);
+    setSendError(null);
+    setSubmitting(true);
     try {
-      const data = {
-        name: String(fd.get("name") ?? ""),
-        email,
-        company: String(fd.get("company") ?? ""),
-        fleet: String(fd.get("fleet") ?? ""),
-        system: String(fd.get("system") ?? ""),
-        message: String(fd.get("message") ?? ""),
-        at: new Date().toISOString(),
-      };
-      const list = JSON.parse(localStorage.getItem("vendai_signups") || "[]");
-      list.push(data);
-      localStorage.setItem("vendai_signups", JSON.stringify(list));
+      const result = await submitInterest(fd);
+      if (!result.ok) {
+        setSendError(result.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+      setDone(true);
     } catch {
-      /* ignore storage errors */
+      setSendError("Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
-    setDone(true);
   }
 
   if (done) {
@@ -131,12 +131,17 @@ export default function InterestForm() {
             />
           </div>
           <div className="form-actions">
-            <button type="submit" className="btn btn-gold">
-              Request early access
+            <button type="submit" className="btn btn-gold" disabled={submitting}>
+              {submitting ? "Sending…" : "Request early access"}
             </button>
             <span className="fine">
               No spam. We&apos;ll only email you about the Vendai beta.
             </span>
+            {sendError ? (
+              <span className="auth-error" role="alert">
+                {sendError}
+              </span>
+            ) : null}
           </div>
         </div>
       </form>
