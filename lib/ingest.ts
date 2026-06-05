@@ -2,14 +2,21 @@ import "server-only";
 import { dbConfigured, getSql, ensureSchema } from "@/lib/db";
 import {
   type Sale,
+  type Alert,
   type NayaxConn,
   getLastSales,
+  getLastAlerts,
   saleAmount,
   saleLabel,
   salePayment,
   saleCurrency,
   saleTxnId,
   saleOccurredAtGMT,
+  alertId,
+  alertText,
+  alertTime,
+  alertCategory,
+  alertSeverity,
 } from "@/lib/nayax";
 
 /** Treat a Lynx GMT timestamp (often missing the 'Z') as UTC and normalize to ISO. */
@@ -89,6 +96,72 @@ export async function ingestMachine(
 ): Promise<number> {
   const sales = await getLastSales(conn, machineId);
   return await ingestSales(userKey, machineId, sales);
+}
+
+/**
+ * Persist alerts/events into Neon, deduped by (user, machine, event_key). The
+ * key is Lynx's explicit event id when present, else a composite of
+ * time|event|category. Idempotent — safe on every view and from the cron.
+ * Returns the count of NEW rows.
+ */
+export async function ingestAlerts(
+  userKey: string,
+  machineId: string,
+  alerts: Alert[],
+): Promise<number> {
+  if (!dbConfigured() || !machineId || !alerts.length) return 0;
+  await ensureSchema();
+  const sql = getSql();
+
+  const seen = new Set<string>();
+  const rows = alerts
+    .slice(0, 1000)
+    .map((a) => {
+      const event = alertText(a);
+      const category = alertCategory(a) || null;
+      const occurred = toUtcIso(alertTime(a));
+      const explicit = alertId(a);
+      const key = explicit
+        ? `id:${explicit}`
+        : `c:${occurred ?? ""}|${event}|${category ?? ""}`;
+      return { key, event, category, severity: alertSeverity(a), occurred };
+    })
+    .filter((r) => {
+      if (seen.has(r.key)) return false;
+      seen.add(r.key);
+      return true;
+    });
+  if (!rows.length) return 0;
+
+  const cols = 7;
+  const params: unknown[] = [];
+  const tuples = rows
+    .map((r, i) => {
+      const b = i * cols;
+      params.push(userKey, machineId, r.key, r.event, r.category, r.severity, r.occurred);
+      return `($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7})`;
+    })
+    .join(",");
+
+  const text =
+    `insert into alerts (user_key, machine_id, event_key, event, category, severity, occurred_at) ` +
+    `values ${tuples} on conflict (user_key, machine_id, event_key) do nothing returning event_key`;
+
+  const inserted = (await sql.query(text, params)) as unknown[];
+  return Array.isArray(inserted) ? inserted.length : 0;
+}
+
+/**
+ * Fetch + persist recent alerts for one machine (used by the cron and the
+ * Alerts page). Throws on a Nayax/DB failure so the caller can record it.
+ */
+export async function ingestMachineAlerts(
+  conn: NayaxConn,
+  userKey: string,
+  machineId: string,
+): Promise<number> {
+  const alerts = await getLastAlerts(conn, machineId);
+  return await ingestAlerts(userKey, machineId, alerts);
 }
 
 /** One row written to ingest_runs per cron execution. */

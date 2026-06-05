@@ -297,6 +297,18 @@ export function alertTime(a: Alert): string {
 export function alertCategory(a: Alert): string {
   return pickStr(a, ["EventCategoryName", "EventGroupName", "Severity", "Level", "Type"]);
 }
+/** Explicit event id if Lynx provides one (used as the dedup key when present). */
+export function alertId(a: Alert): string {
+  return pickStr(a, ["EventID", "EventId", "AlertID", "AlertId", "EventLogID", "Id", "ID"]);
+}
+/** Heuristic severity from the event text + category. Shared by ingest (stored)
+ * and the dashboard (display) so both agree. */
+export function alertSeverity(a: Alert): "high" | "med" | "low" {
+  const s = `${alertText(a)} ${alertCategory(a)}`.toLowerCase();
+  if (/(error|fault|fail|jam|critical|tamper|offline|down|empty|vend out)/.test(s)) return "high";
+  if (/(warn|low|temperature|door|reader|disabled)/.test(s)) return "med";
+  return "low";
+}
 
 /* products / planogram */
 export function productName(p: Product): string {

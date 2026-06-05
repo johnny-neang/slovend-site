@@ -1,6 +1,6 @@
 import { listAllConnections } from "@/lib/connections";
 import { listMachines } from "@/lib/nayax";
-import { ingestMachine, recordIngestRun } from "@/lib/ingest";
+import { ingestMachine, ingestMachineAlerts, recordIngestRun } from "@/lib/ingest";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -35,7 +35,12 @@ export async function GET(req: Request) {
       try {
         ingested += await ingestMachine(conn, userKey, id);
       } catch (e) {
-        errors.push({ userKey, machineId: id, message: errMsg(e) });
+        errors.push({ userKey, machineId: id, message: `sales: ${errMsg(e)}` });
+      }
+      try {
+        ingested += await ingestMachineAlerts(conn, userKey, id);
+      } catch (e) {
+        errors.push({ userKey, machineId: id, message: `alerts: ${errMsg(e)}` });
       }
     }
   }

@@ -65,6 +65,22 @@ export function toCsv(rows: ExportRow[], timezone: string): string {
   return [header.join(","), ...lines].join("\n");
 }
 
+/** Alerts/events CSV. Rows come from `alertsForExport` in lib/alerts.ts. */
+export function alertsToCsv(
+  rows: { time: string; severity: string; category: string; event: string }[],
+  timezone: string,
+): string {
+  const esc = (v: unknown) => {
+    const s = String(v ?? "");
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const header = [`Time (${timezone})`, "Severity", "Category", "Event"];
+  const lines = rows.map((r) =>
+    [r.time, r.severity, r.category, r.event].map(esc).join(","),
+  );
+  return [header.join(","), ...lines].join("\n");
+}
+
 export function fileSlug(s: string): string {
   return (
     s

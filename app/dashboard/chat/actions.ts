@@ -70,6 +70,7 @@ export async function sendMessageAction(
       { id: ctx.machineId, name: machineLabel(ctx.machine) },
       history.map((m) => ({ role: m.role, text: m.content })),
       clean,
+      key,
     );
   } catch (e) {
     answer = `Sorry — I hit an error reaching the model: ${

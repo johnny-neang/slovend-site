@@ -8,6 +8,7 @@ import {
   rgb,
 } from "pdf-lib";
 import type { ReportSummary } from "@/lib/reports";
+import type { AlertsSummary } from "@/lib/alerts";
 import { SLOVEND_WORDMARK_WHITE_B64, SLOVEND_WORDMARK_WHITE_DIMS } from "@/lib/brand-logo";
 
 const CHERRY = rgb(0.8196, 0.1686, 0.2471);
@@ -160,6 +161,73 @@ export async function buildReportPdf(opts: {
   }
 
   drawFooter(page, fonts);
+  return doc.save();
+}
+
+export async function buildAlertsPdf(opts: {
+  machineName: string;
+  windowLabel: string;
+  generatedAt: string;
+  timezone: string;
+  summary: AlertsSummary;
+}): Promise<Uint8Array> {
+  const { machineName, windowLabel, generatedAt, timezone, summary } = opts;
+  const { doc, page, fonts, logo } = await newDoc(`Vendai alerts — ${machineName}`);
+  const k = kit(page, fonts);
+  drawHeader(page, fonts, logo, "VENDAI · ALERTS & EVENTS");
+
+  let y = H - 120;
+  k.text(k.clip(machineName, 46), M, y, 22, fonts.serif, INK);
+  y -= 16;
+  k.text(`${windowLabel} · ${timezone} · Generated ${generatedAt}`, M, y, 10, fonts.helv, GRAY);
+  y -= 30;
+
+  const stats: [string, string][] = [
+    ["Events", String(summary.total)],
+    ["High", String(summary.bySeverity.high)],
+    ["Medium", String(summary.bySeverity.med)],
+    ["Low", String(summary.bySeverity.low)],
+  ];
+  const colW = (W - 2 * M) / 4;
+  stats.forEach(([label, val], i) => {
+    const x = M + i * colW;
+    k.text(val, x, y, 18, fonts.helvB, CHERRY);
+    k.text(label.toUpperCase(), x, y - 13, 8, fonts.helvB, GRAY);
+  });
+  y -= 38;
+  page.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: 1, color: LINE });
+  y -= 22;
+
+  // Events table
+  k.text("TIME", M, y, 8, fonts.helvB, GRAY);
+  k.text("SEV", M + 150, y, 8, fonts.helvB, GRAY);
+  k.text("CATEGORY", M + 190, y, 8, fonts.helvB, GRAY);
+  k.text("EVENT", M + 300, y, 8, fonts.helvB, GRAY);
+  y -= 6;
+  page.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: 0.5, color: LINE });
+  y -= 14;
+
+  const rows = summary.rows.slice(0, 34);
+  for (const r of rows) {
+    if (y < 70) break; // keep within one page
+    k.text(k.clip(r.time, 22), M, y, 9, fonts.helv, INK);
+    k.text(k.clip(r.severity, 5), M + 150, y, 9, fonts.helv, r.severity === "high" ? CHERRY : GRAY);
+    k.text(k.clip(r.category || "—", 18), M + 190, y, 9, fonts.helv, GRAY);
+    k.text(k.clip(r.event, 42), M + 300, y, 9, fonts.helv, INK);
+    y -= 15;
+  }
+  if (!rows.length) {
+    k.text("No events recorded in this range.", M, y, 10, fonts.helv, GRAY);
+    y -= 15;
+  }
+
+  drawFooter(
+    page,
+    fonts,
+    `${summary.total} event${summary.total === 1 ? "" : "s"} recorded by Vendai in this window${
+      summary.rows.length > rows.length ? ` (showing the ${rows.length} most recent)` : ""
+    }. Severity is heuristic, derived from each event's description.`,
+  );
   return doc.save();
 }
 

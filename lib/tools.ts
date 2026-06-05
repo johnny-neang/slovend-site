@@ -28,6 +28,7 @@ import {
 import { reportSummary } from "@/lib/reports";
 import { taxReport, getTaxSettings } from "@/lib/tax";
 import { salesForExport } from "@/lib/exports";
+import { alertsSummary, type Severity } from "@/lib/alerts";
 import { resolveWindow } from "@/lib/window";
 import { getMachineTimezone } from "@/lib/settings";
 
@@ -37,7 +38,15 @@ import { getMachineTimezone } from "@/lib/settings";
  * operator's userKey; `conn` is their decrypted Nayax connection.
  */
 export type ToolCtx = { email: string; conn: NayaxConn };
-export type ToolArgs = { machineId?: string; range?: string; from?: string; to?: string };
+export type ToolArgs = {
+  machineId?: string;
+  range?: string;
+  from?: string;
+  to?: string;
+  q?: string;
+  severity?: string;
+  category?: string;
+};
 
 async function resolveMachineId(ctx: ToolCtx, id?: string): Promise<string> {
   if (id) return id;
@@ -168,6 +177,28 @@ export async function toolExport(ctx: ToolCtx, args: ToolArgs) {
   return { machineId, window: win.label, timezone: tz, count: rows.length, rows: rows.slice(0, 1000) };
 }
 
+export async function toolAlertHistory(ctx: ToolCtx, args: ToolArgs) {
+  const machineId = await resolveMachineId(ctx, args.machineId);
+  const win = resolveWindow({ range: args.range, from: args.from, to: args.to });
+  const tz = await getMachineTimezone(ctx.email, machineId);
+  const sev = args.severity;
+  const summary = await alertsSummary(ctx.email, machineId, win, tz, {
+    q: args.q,
+    severity: sev === "high" || sev === "med" || sev === "low" ? (sev as Severity) : undefined,
+    category: args.category,
+  });
+  return {
+    machineId,
+    window: win.label,
+    timezone: tz,
+    total: summary.total,
+    bySeverity: summary.bySeverity,
+    byCategory: summary.byCategory,
+    events: summary.rows.slice(0, 100),
+    note: "Persisted event history recorded by Vendai (deduped). Differs from get_alerts, which returns only Lynx's live recent window.",
+  };
+}
+
 const machineArg = {
   machineId: z
     .string()
@@ -215,9 +246,21 @@ export const READ_TOOLS: {
   },
   {
     name: "get_alerts",
-    description: "Recent alerts/events for a machine (faults, reader errors, etc.).",
+    description: "Recent LIVE alerts/events for a machine (faults, reader errors, etc.) from Lynx's recent window. For history/search over a date range use get_alert_history.",
     shape: machineArg,
     run: (ctx, a) => toolAlerts(ctx, a.machineId),
+  },
+  {
+    name: "get_alert_history",
+    description:
+      "Compiled alert/event history recorded by Vendai over a window, with totals by severity and category. Supports text search and severity/category filters — use this to investigate or diagnose past events.",
+    shape: {
+      ...rangeArgs,
+      q: z.string().optional().describe("Text search over event description and category."),
+      severity: z.enum(["high", "med", "low"]).optional().describe("Filter by severity."),
+      category: z.string().optional().describe("Filter by exact event category."),
+    },
+    run: (ctx, a) => toolAlertHistory(ctx, a),
   },
   {
     name: "get_report",
