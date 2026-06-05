@@ -4,10 +4,9 @@ import { redirect } from "next/navigation";
 import { getCtx, machineLabel } from "@/lib/dashboard";
 import DashError from "@/components/DashError";
 import { ingestMachineAlerts } from "@/lib/ingest";
-import { alertsSummary, type AlertFilter, type Severity } from "@/lib/alerts";
+import { alertsSummary, ALERTS_PAGE_SIZE, type AlertFilter, type Severity } from "@/lib/alerts";
 import { resolveWindow } from "@/lib/window";
 import { getMachineTimezone } from "@/lib/settings";
-import BarChart, { type BarDatum } from "@/components/BarChart";
 import DateRangeForm from "@/components/DateRangeForm";
 
 export const metadata: Metadata = { title: "Alerts · Vendai" };
@@ -22,6 +21,7 @@ type SP = {
   q?: string;
   severity?: string;
   category?: string;
+  page?: string;
 };
 
 function asSeverity(v?: string): Severity | undefined {
@@ -63,19 +63,26 @@ export default async function AlertsPage({ searchParams }: { searchParams: Promi
     await ingestMachineAlerts(ctx.conn, ctx.email, ctx.machineId).catch(() => 0);
   }
 
+  const page = Math.max(1, Math.floor(Number(sp.page)) || 1);
+
   const tz = ctx.email
     ? await getMachineTimezone(ctx.email, ctx.machineId)
     : "America/Los_Angeles";
   const r = ctx.email
-    ? await alertsSummary(ctx.email, ctx.machineId, win, tz, filter)
+    ? await alertsSummary(ctx.email, ctx.machineId, win, tz, filter, page)
     : null;
 
-  // Active filters carried onto range tabs and export links.
+  const total = r?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / ALERTS_PAGE_SIZE));
+  const firstShown = total ? (page - 1) * ALERTS_PAGE_SIZE + 1 : 0;
+  const lastShown = (page - 1) * ALERTS_PAGE_SIZE + (r?.rows.length ?? 0);
+
+  // Active filters carried onto range tabs, export links and the pager.
   const carried = { q: filter.q, severity: filter.severity, category: filter.category };
-  const winQs = {
-    ...carried,
-    ...(win.preset ? { range: String(win.preset) } : { from: win.fromDate, to: win.toDate }),
-  };
+  const winKeys = win.preset
+    ? { range: String(win.preset) }
+    : { from: win.fromDate, to: win.toDate };
+  const winQs = { ...carried, ...winKeys };
 
   // Category dropdown options: those present in the window, plus the active one.
   const cats = new Set<string>(
@@ -84,11 +91,6 @@ export default async function AlertsPage({ searchParams }: { searchParams: Promi
   if (filter.category) cats.add(filter.category);
   const categoryOptions = [...cats].sort();
 
-  const dayData: BarDatum[] = (r?.byDay ?? []).map((d) => ({
-    label: d.label,
-    value: d.n,
-    tip: `${d.label} · ${d.n} event${d.n === 1 ? "" : "s"}`,
-  }));
   const hasFilter = Boolean(filter.q || filter.severity || filter.category);
 
   return (
@@ -97,7 +99,7 @@ export default async function AlertsPage({ searchParams }: { searchParams: Promi
         <div className="dash-head">
           <div>
             <div className="kicker">{machineLabel(ctx.machine)}</div>
-            <h1 className="serif-display">Alerts &amp; events</h1>
+            <h1 className="serif-display">Alerts</h1>
           </div>
           <div className="report-controls">
             <div className="range-tabs">
@@ -206,13 +208,6 @@ export default async function AlertsPage({ searchParams }: { searchParams: Promi
               </div>
             </div>
 
-            <div className="dash-mock" style={{ marginBottom: 20 }}>
-              <div className="tile chart">
-                <div className="l">Events per day · {win.short}</div>
-                <BarChart data={dayData} tone="dark" height={160} />
-              </div>
-            </div>
-
             <div className="alert-list">
               {r.rows.map((a, i) => (
                 <div className={`alert-row sev-${a.severity}`} key={i}>
@@ -227,12 +222,38 @@ export default async function AlertsPage({ searchParams }: { searchParams: Promi
                 </div>
               ))}
             </div>
-            {r.total > r.rows.length ? (
-              <p className="note" style={{ textAlign: "left", marginTop: 14 }}>
-                Showing the {r.rows.length} most recent of {r.total.toLocaleString()} matching events
-                — narrow the range or filters, or export the full set as CSV.
-              </p>
-            ) : null}
+
+            <div className="alert-pager">
+              <span className="pager-info">
+                {firstShown.toLocaleString()}–{lastShown.toLocaleString()} of{" "}
+                {total.toLocaleString()} event{total === 1 ? "" : "s"}
+              </span>
+              <span className="pager-nav">
+                {page > 1 ? (
+                  <Link
+                    className="pager-btn"
+                    href={`/dashboard/alerts?${qs(winQs, { page: String(page - 1) })}`}
+                  >
+                    ← Prev
+                  </Link>
+                ) : (
+                  <span className="pager-btn is-disabled">← Prev</span>
+                )}
+                <span className="pager-page">
+                  Page {page} of {pageCount}
+                </span>
+                {page < pageCount ? (
+                  <Link
+                    className="pager-btn"
+                    href={`/dashboard/alerts?${qs(winQs, { page: String(page + 1) })}`}
+                  >
+                    Next →
+                  </Link>
+                ) : (
+                  <span className="pager-btn is-disabled">Next →</span>
+                )}
+              </span>
+            </div>
           </>
         )}
       </div>

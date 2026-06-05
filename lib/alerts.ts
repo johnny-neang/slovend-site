@@ -18,13 +18,14 @@ export type AlertEventRow = {
   event: string;
 };
 
+export const ALERTS_PAGE_SIZE = 100;
+
 export type AlertsSummary = {
   hasData: boolean;
-  total: number;
+  total: number; // total matching events in the window (across all pages)
   bySeverity: { high: number; med: number; low: number };
   byCategory: { category: string; n: number }[];
-  byDay: { label: string; n: number }[];
-  rows: AlertEventRow[];
+  rows: AlertEventRow[]; // just the requested page
 };
 
 const EMPTY: AlertsSummary = {
@@ -32,7 +33,6 @@ const EMPTY: AlertsSummary = {
   total: 0,
   bySeverity: { high: 0, med: 0, low: 0 },
   byCategory: [],
-  byDay: [],
   rows: [],
 };
 
@@ -81,12 +81,16 @@ export async function alertsSummary(
   win: Win,
   timezone: string,
   filter: AlertFilter = {},
+  page = 1,
+  pageSize = ALERTS_PAGE_SIZE,
 ): Promise<AlertsSummary> {
   if (!dbConfigured() || !machineId) return EMPTY;
   await ensureSchema();
   const sql = getSql();
   const Z = sqlTz(timezone);
   const { where, params } = buildWhere(userKey, machineId, win, Z, filter);
+  const size = Math.max(1, Math.min(500, Math.floor(pageSize)));
+  const offset = Math.max(0, (Math.max(1, Math.floor(page)) - 1) * size);
 
   try {
     const sevRows = (await sql.query(
@@ -109,14 +113,7 @@ export async function alertsSummary(
       params,
     )) as { category: string; n: number }[];
 
-    const dayRows = (await sql.query(
-      `select to_char(date_trunc('day', occurred_at at time zone ${Z}), 'YYYY-MM-DD') as d,
-              count(*)::int as n
-       from alerts where ${where}
-       group by 1 order by 1`,
-      params,
-    )) as { d: string; n: number }[];
-
+    const pageParams = [...params, size, offset];
     const rawRows = (await sql.query(
       `select to_char(occurred_at at time zone ${Z}, 'YYYY-MM-DD HH24:MI:SS') as local_time,
               coalesce(nullif(severity,''),'low') as severity,
@@ -124,8 +121,8 @@ export async function alertsSummary(
               coalesce(nullif(event,''),'Event') as event
        from alerts where ${where}
        order by occurred_at desc nulls last
-       limit 500`,
-      params,
+       limit $${params.length + 1} offset $${params.length + 2}`,
+      pageParams,
     )) as { local_time: string | null; severity: string; category: string; event: string }[];
 
     return {
@@ -133,7 +130,6 @@ export async function alertsSummary(
       total,
       bySeverity,
       byCategory,
-      byDay: fillDays(dayRows, win.fromDate, win.toDate),
       rows: rawRows.map((r) => ({
         time: r.local_time ?? "",
         severity: r.severity,
@@ -175,33 +171,4 @@ export async function alertsForExport(
     category: r.category,
     event: r.event,
   }));
-}
-
-function shortMD(iso: string): string {
-  const d = new Date(`${iso}T00:00:00Z`);
-  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
-}
-
-/** Fill every day in the window (zeros for quiet days); bucket weekly past ~45 days. */
-function fillDays(
-  rows: { d: string; n: number }[],
-  fromDate: string,
-  toDate: string,
-): { label: string; n: number }[] {
-  const map = new Map(rows.map((r) => [r.d, r.n]));
-  const days: { date: string; n: number }[] = [];
-  let t = Date.parse(`${fromDate}T00:00:00Z`);
-  const end = Date.parse(`${toDate}T00:00:00Z`);
-  while (t <= end) {
-    const iso = new Date(t).toISOString().slice(0, 10);
-    days.push({ date: iso, n: map.get(iso) ?? 0 });
-    t += 86400000;
-  }
-  if (days.length <= 45) return days.map((d) => ({ label: shortMD(d.date), n: d.n }));
-  const out: { label: string; n: number }[] = [];
-  for (let i = 0; i < days.length; i += 7) {
-    const grp = days.slice(i, i + 7);
-    out.push({ label: shortMD(grp[0].date), n: grp.reduce((s, x) => s + x.n, 0) });
-  }
-  return out;
 }
