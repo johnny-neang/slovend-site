@@ -78,16 +78,50 @@ export async function ingestSales(
   return Array.isArray(inserted) ? inserted.length : 0;
 }
 
-/** Fetch + persist recent sales for one machine (used by the cron). */
+/**
+ * Fetch + persist recent sales for one machine (used by the cron). Throws on a
+ * Nayax/DB failure so the caller can record it — callers must wrap in try/catch.
+ */
 export async function ingestMachine(
   conn: NayaxConn,
   userKey: string,
   machineId: string,
 ): Promise<number> {
+  const sales = await getLastSales(conn, machineId);
+  return await ingestSales(userKey, machineId, sales);
+}
+
+/** One row written to ingest_runs per cron execution. */
+export type IngestRun = {
+  trigger?: string;
+  ok: boolean;
+  connections: number;
+  machines: number;
+  ingested: number;
+  errors: number;
+  errorDetail: { userKey: string; machineId?: string; message: string }[];
+  durationMs: number;
+};
+
+/**
+ * Fire-and-forget: persist a summary of one ingest run so cron activity and
+ * failures are auditable. No-ops without a database; never throws.
+ */
+export async function recordIngestRun(run: IngestRun): Promise<void> {
+  if (!dbConfigured()) return;
   try {
-    const sales = await getLastSales(conn, machineId);
-    return await ingestSales(userKey, machineId, sales);
-  } catch {
-    return 0;
+    await ensureSchema();
+    const sql = getSql();
+    await sql`
+      insert into ingest_runs
+        (trigger, ok, connections, machines, ingested, errors, error_detail, duration_ms)
+      values (
+        ${run.trigger ?? "cron"}, ${run.ok}, ${run.connections}, ${run.machines},
+        ${run.ingested}, ${run.errors}, ${JSON.stringify(run.errorDetail)}::jsonb,
+        ${run.durationMs}
+      )
+    `;
+  } catch (e) {
+    console.error("recordIngestRun failed", e);
   }
 }

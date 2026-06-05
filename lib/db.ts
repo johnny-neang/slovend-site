@@ -98,6 +98,21 @@ export function ensureSchema(): Promise<void> {
         )
       `;
       await sql`create index if not exists mcp_activity_user_idx on mcp_activity (user_key, created_at desc)`;
+      await sql`
+        create table if not exists ingest_runs (
+          id           bigserial primary key,
+          trigger      text not null default 'cron',
+          ok           boolean not null,
+          connections  int not null default 0,
+          machines     int not null default 0,
+          ingested     int not null default 0,
+          errors       int not null default 0,
+          error_detail jsonb,
+          duration_ms  int,
+          created_at   timestamptz not null default now()
+        )
+      `;
+      await sql`create index if not exists ingest_runs_time_idx on ingest_runs (created_at desc)`;
     })();
   }
   return _schema;
