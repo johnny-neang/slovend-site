@@ -141,24 +141,37 @@ export default async function Overview({
   const temp = statusTemp(status);
 
   // Snapshot current health (throttled to ~hourly) and read back the trend so the
-  // Overview can plot RSSI over time. No extra Nayax call — `status` is reused.
+  // Overview can plot RSSI and temperature over time. No extra Nayax call —
+  // `status` is reused.
   let rssiPoints: TrendPoint[] = [];
+  let tempPoints: TrendPoint[] = [];
   if (ctx.email) {
     await recordHealth(ctx.email, id, status).catch(() => {});
     const trend = await healthTrend(ctx.email, id).catch(() => null);
-    rssiPoints = (trend?.samples ?? [])
+    const samples = trend?.samples ?? [];
+    const labelFor = (iso: string) => {
+      const d = new Date(iso);
+      const label = `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+      const when = new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: tz,
+      }).format(d);
+      return { label, when };
+    };
+    rssiPoints = samples
       .filter((s): s is typeof s & { rssi: number } => s.rssi != null)
       .map((s) => {
-        const d = new Date(s.at);
-        const label = `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
-        const when = new Intl.DateTimeFormat("en-US", {
-          month: "short",
-          day: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-          timeZone: tz,
-        }).format(d);
+        const { label, when } = labelFor(s.at);
         return { label, value: s.rssi, tip: `${when} · RSSI ${s.rssi}` };
+      });
+    tempPoints = samples
+      .filter((s): s is typeof s & { tempC: number } => s.tempC != null)
+      .map((s) => {
+        const { label, when } = labelFor(s.at);
+        return { label, value: s.tempC, tip: `${when} · ${s.tempC}°C` };
       });
   }
 
@@ -267,6 +280,17 @@ export default async function Overview({
               ) : (
                 <div className="muted">
                   Signal trend builds as samples accumulate (captured hourly).
+                </div>
+              )}
+            </div>
+
+            <div className="health-trend">
+              <div className="ht-label">Temperature · 7d</div>
+              {tempPoints.length >= 2 ? (
+                <TrendChart data={tempPoints} tone="light" height={120} />
+              ) : (
+                <div className="muted">
+                  Temperature trend builds as samples accumulate (captured hourly).
                 </div>
               )}
             </div>
