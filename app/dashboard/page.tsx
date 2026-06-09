@@ -18,6 +18,7 @@ import {
 import { revalidatePath } from "next/cache";
 import { ingestSales } from "@/lib/ingest";
 import { recordHealth, healthTrend } from "@/lib/health";
+import { recentCriticalAlerts } from "@/lib/alerts";
 import { overviewTotals } from "@/lib/reports";
 import { getMachineTimezone, saveMachineTimezone, ALLOWED_TZ } from "@/lib/settings";
 import TimezoneSelect from "@/components/TimezoneSelect";
@@ -141,6 +142,12 @@ export default async function Overview({
   const avg7 = tot.v7 ? tot.rev7 / tot.v7 : 0;
   const tz = ctx.email ? await getMachineTimezone(ctx.email, id) : "America/Los_Angeles";
 
+  // Latest critical (high-severity) alerts from the persisted log (populated by
+  // the Alerts page + hourly cron); read-only here to keep the Overview light.
+  const criticalAlerts = ctx.email
+    ? await recentCriticalAlerts(ctx.email, id, tz, 5).catch(() => [])
+    : [];
+
   const vends = sales.length;
   const lowStock = products.filter(productLowStock);
   const online = statusOnline(status);
@@ -258,26 +265,53 @@ export default async function Overview({
         </div>
 
         <div className="panel-grid">
-          <div className="panel">
-            <div className="panel-h">Payment mix · recent</div>
-            {payRows.length ? (
-              <div className="bars-h">
-                {payRows.map(([k, v]) => (
-                  <div className="bar-h" key={k}>
-                    <span className="bk">{k}</span>
-                    <span className="bv">
-                      <span style={{ width: `${Math.round((v / vends) * 100)}%` }} />
-                    </span>
-                    <span className="bn">{v}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="muted">No recent sales.</div>
-            )}
-            <Link className="panel-link" href="/dashboard/sales">
-              View sales feed →
-            </Link>
+          <div className="panel-col">
+            <div className="panel">
+              <div className="panel-h">Payment mix · recent</div>
+              {payRows.length ? (
+                <div className="bars-h">
+                  {payRows.map(([k, v]) => (
+                    <div className="bar-h" key={k}>
+                      <span className="bk">{k}</span>
+                      <span className="bv">
+                        <span style={{ width: `${Math.round((v / vends) * 100)}%` }} />
+                      </span>
+                      <span className="bn">{v}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="muted">No recent sales.</div>
+              )}
+              <Link className="panel-link" href="/dashboard/sales">
+                View sales feed →
+              </Link>
+            </div>
+
+            <div className="panel">
+              <div className="panel-h">Critical alerts · recent</div>
+              {criticalAlerts.length ? (
+                <div className="mini-alerts">
+                  {criticalAlerts.map((a, i) => (
+                    <div className="alert-row sev-high" key={i}>
+                      <span className="sev-dot" />
+                      <div className="alert-main">
+                        <div className="alert-text">{a.event}</div>
+                        <div className="alert-meta">
+                          {a.category ? `${a.category} · ` : ""}
+                          {a.time || "—"}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="muted">No critical alerts — all clear.</div>
+              )}
+              <Link className="panel-link" href="/dashboard/alerts?severity=high">
+                View all alerts →
+              </Link>
+            </div>
           </div>
 
           <div className="panel">

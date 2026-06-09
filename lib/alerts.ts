@@ -172,3 +172,42 @@ export async function alertsForExport(
     event: r.event,
   }));
 }
+
+/**
+ * The latest high-severity ("critical") events for a machine, newest first,
+ * across all time (not date-bounded). Used by the Overview summary panel.
+ */
+export async function recentCriticalAlerts(
+  userKey: string,
+  machineId: string,
+  timezone: string,
+  limit = 5,
+): Promise<AlertEventRow[]> {
+  if (!dbConfigured() || !userKey || !machineId) return [];
+  await ensureSchema();
+  const sql = getSql();
+  const Z = sqlTz(timezone);
+  const n = Math.max(1, Math.min(20, Math.floor(limit)));
+  try {
+    const rows = (await sql.query(
+      `select to_char(occurred_at at time zone ${Z}, 'YYYY-MM-DD HH24:MI:SS') as local_time,
+              coalesce(nullif(severity,''),'low') as severity,
+              coalesce(nullif(category,''),'') as category,
+              coalesce(nullif(event,''),'Event') as event
+       from alerts
+       where user_key = $1 and machine_id = $2 and severity = 'high'
+       order by occurred_at desc nulls last
+       limit $3`,
+      [userKey, machineId, n],
+    )) as { local_time: string | null; severity: string; category: string; event: string }[];
+    return rows.map((r) => ({
+      time: r.local_time ?? "",
+      severity: r.severity,
+      category: r.category,
+      event: r.event,
+    }));
+  } catch (e) {
+    console.error("recentCriticalAlerts failed", e);
+    return [];
+  }
+}
