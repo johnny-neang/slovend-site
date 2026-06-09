@@ -26,7 +26,7 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: "get_status",
     description:
-      "Connectivity & health of the selected machine: online state, last heartbeat, signal (RSSI), temperature.",
+      "Connectivity & health of the selected machine: online state, last heartbeat, signal (RSSI value + quality band like Excellent/Good/Fair/Poor/No signal), temperature.",
     input_schema: { type: "object", properties: {} },
   },
   {
@@ -117,6 +117,7 @@ Guidelines:
 - Lead with the answer/number, then a short supporting detail. Be concise.
 - Money is USD; "revenue" is settled amounts. Lynx returns only recent sales (not full history) — say so if asked for longer ranges; historical reports live on the Reports tab.
 - For alerts: get_alerts is the live recent window; get_alert_history searches saved events over a date range (supports q/severity/category) — use it to diagnose or count past faults.
+- For signal: get_status returns signalRSSI plus a signalQuality band. Report the quality word (e.g. "signal is Poor (8 CSQ)"). RSSI is the cellular CSQ index 0–31 (higher = better); healthy is 15+, investigate below ~10, and "No signal" means the unit isn't communicating.
 - If a tool returns an {"error": ...}, briefly tell the user what the error said (e.g. a connectivity or permissions issue) instead of claiming the machine doesn't exist.
 - You are read-only and cannot make changes. Today is ${today}.`;
 

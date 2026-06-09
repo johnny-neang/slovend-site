@@ -31,6 +31,7 @@ import { salesForExport } from "@/lib/exports";
 import { alertsSummary, type Severity } from "@/lib/alerts";
 import { resolveWindow } from "@/lib/window";
 import { getMachineTimezone } from "@/lib/settings";
+import { rssiScaleOf, rssiQuality, isUnknownRssi, RSSI_UNIT } from "@/lib/rssi";
 
 /**
  * Canonical read-only Vendai operations, shared by the in-app Haiku chat
@@ -65,12 +66,33 @@ export async function toolListMachines(ctx: ToolCtx) {
 export async function toolStatus(ctx: ToolCtx, id?: string) {
   const machineId = await resolveMachineId(ctx, id);
   const s = await getMachineStatus(ctx.conn, machineId);
+  const rssi = statusSignal(s);
+
+  // Classify the signal so the assistant can say "signal is Poor" rather than
+  // quoting a bare number. Nayax sends the 3GPP AT+CSQ index (0–31; 99 = no
+  // signal); a negative reading would be dBm. See lib/rssi.ts.
+  let signalQuality: string | null = null;
+  let signalScale: string | null = null;
+  if (rssi != null) {
+    if (isUnknownRssi(rssi)) {
+      signalQuality = "No signal";
+    } else {
+      const scale = rssiScaleOf([rssi]);
+      signalScale = RSSI_UNIT[scale];
+      signalQuality = rssiQuality(rssi, scale)?.quality ?? null;
+    }
+  }
+
   return {
     machineId,
     online: statusOnline(s),
     lastSeen: statusLastSeen(s),
-    signalRSSI: statusSignal(s),
+    signalRSSI: rssi,
+    signalScale, // "CSQ" (0–31) or "dBm"
+    signalQuality, // Excellent | Good | Fair | Poor | No signal
     temperature: statusTemp(s) || null,
+    signalNote:
+      "RSSI is the cellular AT+CSQ index 0–31 (higher is better); healthy is 15+, investigate below ~10. 99/none means no signal.",
   };
 }
 
@@ -227,7 +249,7 @@ export const READ_TOOLS: {
   },
   {
     name: "get_machine_status",
-    description: "Connectivity & health of a machine: online state, last heartbeat, signal (RSSI), temperature.",
+    description: "Connectivity & health of a machine: online state, last heartbeat, signal (RSSI value + quality band Excellent/Good/Fair/Poor/No signal), temperature.",
     shape: machineArg,
     run: (ctx, a) => toolStatus(ctx, a.machineId),
   },
