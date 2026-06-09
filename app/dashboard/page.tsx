@@ -17,9 +17,11 @@ import {
 } from "@/lib/nayax";
 import { revalidatePath } from "next/cache";
 import { ingestSales } from "@/lib/ingest";
+import { recordHealth, healthTrend } from "@/lib/health";
 import { overviewTotals } from "@/lib/reports";
 import { getMachineTimezone, saveMachineTimezone, ALLOWED_TZ } from "@/lib/settings";
 import TimezoneSelect from "@/components/TimezoneSelect";
+import TrendChart, { type TrendPoint } from "@/components/TrendChart";
 
 export const metadata: Metadata = { title: "Dashboard · Slovend" };
 export const dynamic = "force-dynamic";
@@ -138,6 +140,28 @@ export default async function Overview({
   const signal = statusSignal(status);
   const temp = statusTemp(status);
 
+  // Snapshot current health (throttled to ~hourly) and read back the trend so the
+  // Overview can plot RSSI over time. No extra Nayax call — `status` is reused.
+  let rssiPoints: TrendPoint[] = [];
+  if (ctx.email) {
+    await recordHealth(ctx.email, id, status).catch(() => {});
+    const trend = await healthTrend(ctx.email, id).catch(() => null);
+    rssiPoints = (trend?.samples ?? [])
+      .filter((s): s is typeof s & { rssi: number } => s.rssi != null)
+      .map((s) => {
+        const d = new Date(s.at);
+        const label = `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+        const when = new Intl.DateTimeFormat("en-US", {
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+          timeZone: tz,
+        }).format(d);
+        return { label, value: s.rssi, tip: `${when} · RSSI ${s.rssi}` };
+      });
+  }
+
   const payMix = new Map<string, number>();
   for (const s of sales) payMix.set(salePayment(s) || "Unknown", (payMix.get(salePayment(s) || "Unknown") ?? 0) + 1);
   const payRows = [...payMix.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -235,6 +259,18 @@ export default async function Overview({
                 <b>{temp || "—"}</b>
               </div>
             </div>
+
+            <div className="health-trend">
+              <div className="ht-label">Signal (RSSI) · 7d</div>
+              {rssiPoints.length >= 2 ? (
+                <TrendChart data={rssiPoints} tone="light" height={120} />
+              ) : (
+                <div className="muted">
+                  Signal trend builds as samples accumulate (captured hourly).
+                </div>
+              )}
+            </div>
+
             <Link className="panel-link" href="/dashboard/alerts">
               View alerts &amp; events →
             </Link>

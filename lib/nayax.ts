@@ -388,6 +388,15 @@ export function statusTemp(s: MachineStatus | null): string {
   if (c !== null) return `${c}°C`;
   return "";
 }
+/** Numeric Celsius for storage/charting (converts from Fahrenheit if that's what
+ * Lynx reports). Returns null when no temperature is present. */
+export function statusTempC(s: MachineStatus | null): number | null {
+  if (!s) return null;
+  const f = pickNum(s, ["TemperatureFahrenheit"]);
+  if (f !== null) return Math.round(((f - 32) * 5) / 9 * 10) / 10;
+  const c = pickNum(s, ["TemperatureCelcius", "TemperatureCelsius"]);
+  return c !== null ? c : null;
+}
 export function statusFirmware(s: MachineStatus | null): string {
   if (!s) return "";
   return pickStr(s, ["FirmwareVersion", "Firmware", "Version", "SoftwareVersion"]);

@@ -128,6 +128,19 @@ export function ensureSchema(): Promise<void> {
         )
       `;
       await sql`create index if not exists alerts_machine_time_idx on alerts (user_key, machine_id, occurred_at desc)`;
+      await sql`
+        create table if not exists machine_health (
+          id          bigserial primary key,
+          user_key    text not null,
+          machine_id  text not null,
+          online      boolean,
+          rssi        integer,
+          temp_c      double precision,
+          last_seen   text,
+          captured_at timestamptz not null default now()
+        )
+      `;
+      await sql`create index if not exists machine_health_time_idx on machine_health (user_key, machine_id, captured_at desc)`;
     })();
   }
   return _schema;
