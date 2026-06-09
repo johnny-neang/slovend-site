@@ -149,9 +149,17 @@
 .bchart--light .bchart-tick { color: var(--ink-faint); }
 
 /* Trend (line) chart — shares the tooltip/axis vocabulary with bchart. */
-.tchart { position: relative; margin-top: 12px; }
-.tchart-svg { display: block; width: 100%; }
+.tchart { margin-top: 12px; }
+.tchart-body { display: flex; align-items: stretch; gap: 8px; }
+.tchart-yaxis { display: flex; flex-direction: column; justify-content: space-between; padding: 2px 0; font-family: var(--mono); font-size: 9px; text-align: right; min-width: 30px; }
+.tchart--dark .tchart-yaxis { color: var(--paper-faint); }
+.tchart--light .tchart-yaxis { color: var(--ink-faint); }
+.tchart-plot { position: relative; flex: 1; min-width: 0; }
+.tchart-svg { display: block; width: 100%; border-bottom: 1px solid var(--line); }
+.tchart--dark .tchart-svg { border-bottom-color: rgba(250,246,238,.22); }
 .tchart-line { fill: none; stroke: var(--cherry); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.tchart--bands .tchart-line { stroke: var(--ink); }
+.tchart--bands.tchart--dark .tchart-line { stroke: var(--paper); }
 .tchart-area { fill: rgba(209,43,63,.12); stroke: none; }
 .tchart--dark .tchart-area { fill: rgba(250,246,238,.10); }
 .tchart-dot { fill: var(--cherry); cursor: pointer; transition: r .1s; }
@@ -162,6 +170,10 @@
 .tchart-tick { flex: 1; min-width: 0; text-align: center; font-family: var(--mono); font-size: 9px; white-space: nowrap; }
 .tchart--dark .tchart-tick { color: var(--paper-faint); }
 .tchart--light .tchart-tick { color: var(--ink-faint); }
+.tchart-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; padding-left: 38px; }
+.tchart-key { display: inline-flex; align-items: center; gap: 6px; font-family: var(--label); font-weight: 700; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-dim); }
+.tchart--dark .tchart-key { color: var(--paper-faint); }
+.tchart-swatch { width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto; }
 
 /* MCP strip */
 .mcp { background: var(--paper-2); border-block: 1px solid var(--line); }

@@ -22,6 +22,14 @@ import { overviewTotals } from "@/lib/reports";
 import { getMachineTimezone, saveMachineTimezone, ALLOWED_TZ } from "@/lib/settings";
 import TimezoneSelect from "@/components/TimezoneSelect";
 import TrendChart, { type TrendPoint } from "@/components/TrendChart";
+import {
+  rssiScaleOf,
+  rssiBands,
+  rssiDomain,
+  rssiQuality,
+  isUnknownRssi,
+  RSSI_UNIT,
+} from "@/lib/rssi";
 
 export const metadata: Metadata = { title: "Dashboard · Slovend" };
 export const dynamic = "force-dynamic";
@@ -145,6 +153,9 @@ export default async function Overview({
   // `status` is reused.
   let rssiPoints: TrendPoint[] = [];
   let tempPoints: TrendPoint[] = [];
+  let rssiBandSpec: ReturnType<typeof rssiBands> = [];
+  let rssiDomainSpec = { min: 0, max: 31 };
+  let rssiUnit = "";
   if (ctx.email) {
     await recordHealth(ctx.email, id, status).catch(() => {});
     const trend = await healthTrend(ctx.email, id).catch(() => null);
@@ -161,12 +172,29 @@ export default async function Overview({
       }).format(d);
       return { label, when };
     };
+
+    // RSSI: drop the 99/null "no signal" sentinel (it's offline, not a reading),
+    // detect the scale (Nayax sends the CSQ index 0–31; negative ⇒ dBm), and
+    // attach the healthy/fair/poor bands so the chart shows signal quality.
+    const rssiValues = samples
+      .map((s) => s.rssi)
+      .filter((v): v is number => v != null && !isUnknownRssi(v));
+    const scale = rssiScaleOf(rssiValues);
+    rssiBandSpec = rssiBands(scale);
+    rssiDomainSpec = rssiDomain(scale);
+    rssiUnit = RSSI_UNIT[scale];
     rssiPoints = samples
-      .filter((s): s is typeof s & { rssi: number } => s.rssi != null)
+      .filter((s): s is typeof s & { rssi: number } => s.rssi != null && !isUnknownRssi(s.rssi))
       .map((s) => {
         const { label, when } = labelFor(s.at);
-        return { label, value: s.rssi, tip: `${when} · RSSI ${s.rssi}` };
+        const q = rssiQuality(s.rssi, scale);
+        return {
+          label,
+          value: s.rssi,
+          tip: `${when} · ${s.rssi} ${rssiUnit}${q ? ` · ${q.quality}` : ""}`,
+        };
       });
+
     tempPoints = samples
       .filter((s): s is typeof s & { tempC: number } => s.tempC != null)
       .map((s) => {
@@ -276,10 +304,20 @@ export default async function Overview({
             <div className="health-trend">
               <div className="ht-label">Signal (RSSI) · 7d</div>
               {rssiPoints.length >= 2 ? (
-                <TrendChart data={rssiPoints} tone="light" height={120} />
+                <TrendChart
+                  data={rssiPoints}
+                  tone="light"
+                  height={140}
+                  bands={rssiBandSpec}
+                  yMin={rssiDomainSpec.min}
+                  yMax={rssiDomainSpec.max}
+                  unit={rssiUnit}
+                  legend
+                />
               ) : (
                 <div className="muted">
                   Signal trend builds as samples accumulate (captured hourly).
+                  Healthy is {rssiUnit || "CSQ"} 15+ (excellent at 20+); investigate below 10.
                 </div>
               )}
             </div>
