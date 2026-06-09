@@ -173,6 +173,30 @@ export async function alertsForExport(
   }));
 }
 
+/** Count of high-severity ("critical") events in the last `hours` (default 24). */
+export async function countCriticalAlerts(
+  userKey: string,
+  machineId: string,
+  hours = 24,
+): Promise<number> {
+  if (!dbConfigured() || !userKey || !machineId) return 0;
+  await ensureSchema();
+  const sql = getSql();
+  const h = Math.max(1, Math.min(8760, Math.floor(hours)));
+  try {
+    const rows = (await sql`
+      select count(*)::int as n from alerts
+      where user_key = ${userKey} and machine_id = ${machineId}
+        and severity = 'high'
+        and occurred_at >= now() - (${h} || ' hours')::interval
+    `) as { n: number }[];
+    return rows[0]?.n ?? 0;
+  } catch (e) {
+    console.error("countCriticalAlerts failed", e);
+    return 0;
+  }
+}
+
 /**
  * The latest high-severity ("critical") events for a machine, newest first,
  * across all time (not date-bounded). Used by the Overview summary panel.

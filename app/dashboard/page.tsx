@@ -18,7 +18,7 @@ import {
 import { revalidatePath } from "next/cache";
 import { ingestSales } from "@/lib/ingest";
 import { recordHealth, healthTrend } from "@/lib/health";
-import { recentCriticalAlerts } from "@/lib/alerts";
+import { recentCriticalAlerts, countCriticalAlerts } from "@/lib/alerts";
 import { overviewTotals } from "@/lib/reports";
 import { getMachineTimezone, saveMachineTimezone, ALLOWED_TZ } from "@/lib/settings";
 import TimezoneSelect from "@/components/TimezoneSelect";
@@ -147,6 +147,9 @@ export default async function Overview({
   const criticalAlerts = ctx.email
     ? await recentCriticalAlerts(ctx.email, id, tz, 5).catch(() => [])
     : [];
+  const critical24h = ctx.email
+    ? await countCriticalAlerts(ctx.email, id, 24).catch(() => 0)
+    : 0;
 
   const vends = sales.length;
   const lowStock = products.filter(productLowStock);
@@ -289,7 +292,12 @@ export default async function Overview({
             </div>
 
             <div className="panel">
-              <div className="panel-h">Critical alerts · recent</div>
+              <div className="panel-h panel-h-row">
+                <span>Critical alerts · recent</span>
+                {critical24h > 0 ? (
+                  <span className="panel-badge">{critical24h} in 24h</span>
+                ) : null}
+              </div>
               {criticalAlerts.length ? (
                 <div className="mini-alerts">
                   {criticalAlerts.map((a, i) => (
