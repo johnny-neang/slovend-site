@@ -19,7 +19,8 @@ import { revalidatePath } from "next/cache";
 import { ingestSales } from "@/lib/ingest";
 import { recordHealth, healthTrend } from "@/lib/health";
 import { recentCriticalAlerts, countCriticalAlerts } from "@/lib/alerts";
-import { overviewTotals } from "@/lib/reports";
+import { overviewTotals, salesByHourLast24h } from "@/lib/reports";
+import BarChart, { type BarDatum } from "@/components/BarChart";
 import { getMachineTimezone, saveMachineTimezone, ALLOWED_TZ } from "@/lib/settings";
 import TimezoneSelect from "@/components/TimezoneSelect";
 import TrendChart, { type TrendPoint } from "@/components/TrendChart";
@@ -150,6 +151,9 @@ export default async function Overview({
   const critical24h = ctx.email
     ? await countCriticalAlerts(ctx.email, id, 24).catch(() => 0)
     : 0;
+  const sold24h = ctx.email
+    ? await salesByHourLast24h(ctx.email, id, tz).catch(() => [])
+    : [];
 
   const vends = sales.length;
   const lowStock = products.filter(productLowStock);
@@ -219,6 +223,15 @@ export default async function Overview({
 
   const money = (n: number) =>
     `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  const hourShort = (h: number) => `${h % 12 === 0 ? 12 : h % 12}${h < 12 ? "a" : "p"}`;
+  const hourLong = (h: number) => `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? "AM" : "PM"}`;
+  const sold24hData: BarDatum[] = sold24h.map((b) => ({
+    label: hourShort(b.hod),
+    value: b.revenue,
+    tip: `${hourLong(b.hod)} · ${money(b.revenue)} · ${b.vends} vend${b.vends === 1 ? "" : "s"}`,
+  }));
+  const sold24hHasData = sold24h.some((b) => b.vends > 0);
 
   return (
     <section className="section dash-page">
@@ -322,7 +335,17 @@ export default async function Overview({
             </div>
           </div>
 
-          <div className="panel">
+          <div className="panel-col">
+            <div className="panel">
+              <div className="panel-h">Sales · last 24h</div>
+              {sold24hHasData ? (
+                <BarChart data={sold24hData} tone="light" height={150} />
+              ) : (
+                <div className="muted">No sales in the last 24 hours.</div>
+              )}
+            </div>
+
+            <div className="panel">
             <div className="panel-h">Health</div>
             <div className="kv">
               <div>
@@ -378,6 +401,7 @@ export default async function Overview({
             <Link className="panel-link" href="/dashboard/alerts">
               View alerts &amp; events →
             </Link>
+            </div>
           </div>
         </div>
       </div>

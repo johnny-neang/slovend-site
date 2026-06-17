@@ -173,3 +173,47 @@ export async function overviewTotals(
     return zero;
   }
 }
+
+export type HourBucket = { hod: number; revenue: number; vends: number };
+
+/**
+ * Revenue + vend count per hour for the last 24 rolling hours, in the machine's
+ * local timezone. Always returns exactly 24 buckets (zeros for quiet hours),
+ * oldest → newest. Used by the Overview "last 24h" chart.
+ */
+export async function salesByHourLast24h(
+  userKey: string,
+  machineId: string,
+  timezone: string,
+): Promise<HourBucket[]> {
+  if (!dbConfigured() || !machineId) return [];
+  await ensureSchema();
+  const sql = getSql();
+  const Z = sqlTz(timezone); // whitelisted, inlined literal
+  try {
+    const rows = (await sql.query(
+      `with hours as (
+         select generate_series(
+           date_trunc('hour', (now() at time zone ${Z})) - interval '23 hours',
+           date_trunc('hour', (now() at time zone ${Z})),
+           interval '1 hour'
+         ) as h
+       )
+       select extract(hour from hours.h)::int as hod,
+              count(s.id)::int as vends,
+              coalesce(sum(s.amount), 0)::float as revenue
+       from hours
+       left join sales s
+         on s.user_key = $1 and s.machine_id = $2
+         and s.occurred_at >= now() - interval '25 hours'
+         and date_trunc('hour', s.occurred_at at time zone ${Z}) = hours.h
+       group by hours.h
+       order by hours.h`,
+      [userKey, machineId],
+    )) as { hod: number; vends: number; revenue: number }[];
+    return rows.map((r) => ({ hod: r.hod, vends: r.vends, revenue: r.revenue }));
+  } catch (e) {
+    console.error("salesByHourLast24h failed", e);
+    return [];
+  }
+}
