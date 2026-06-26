@@ -627,11 +627,12 @@ tr.tx-total td { font-family: var(--label); font-weight: 800; border-top: 2px so
 .vend-soldout { position: absolute; top: 8px; left: 8px; font-family: var(--label); font-weight: 700; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--cherry); border-radius: 999px; padding: 3px 8px; }
 .vend-tile-name { font-family: var(--body); font-size: 14px; line-height: 1.25; color: var(--ink); padding: 0 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.5em; }
 .vend-tile-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 0 12px; margin-top: auto; }
-.vend-tile-slot { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
+.vend-tile-slot { font-family: var(--mono); font-size: 16.5px; font-weight: 700; color: var(--ink-faint); }
 .vend-tile-price { font-family: var(--mono); font-size: 14px; color: var(--cherry); }
 @media (min-width: 560px) { .vend-tile { flex-basis: 184px; } }
 
 .vend-modal { max-width: 360px; }
+.vend-modal-slot { font-weight: 700; font-size: 1.5em; }
 .vend-modal-thumb { aspect-ratio: 1/1; }
 .vend-modal-name { font-family: var(--display); font-size: 22px; line-height: 1.1; color: var(--ink); margin: 4px 0 0; }
 .vend-modal-price { font-family: var(--mono); font-size: 16px; color: var(--cherry); }

@@ -15,7 +15,8 @@ export default function ProductModal({
       <div className="pm-panel vend-modal" onClick={(e) => e.stopPropagation()}>
         <div className="pm-head">
           <span className="kicker">
-            {product.out ? "Sold out" : "Item"} · #{product.slot}
+            {product.out ? "Sold out" : "Item"} ·{" "}
+            <span className="vend-modal-slot">#{product.slot}</span>
           </span>
           <button type="button" className="pm-x" onClick={onClose} aria-label="Close">
             ×
