@@ -297,6 +297,83 @@ export async function reorderLandingAssets(
   }
 }
 
+/* ---- QR / landing scan analytics ---- */
+
+export type ScanStats = {
+  total: number;
+  last7: number;
+  last30: number;
+  daily: { label: string; value: number; tip: string }[];
+};
+
+/** Record one landing-page scan (e.g. a QR open via /q/[handle]). Never throws. */
+export async function recordLandingScan(
+  userKey: string,
+  machineId: string,
+  source = "qr",
+): Promise<void> {
+  if (!dbConfigured() || !userKey || !machineId) return;
+  await ensureSchema();
+  const sql = getSql();
+  try {
+    await sql`
+      insert into landing_scans (user_key, machine_id, source)
+      values (${userKey}, ${machineId}, ${source})
+    `;
+  } catch (e) {
+    console.error("recordLandingScan failed", e);
+  }
+}
+
+/** Totals + a 14-day daily series for the dashboard scan readout. */
+export async function getLandingScanStats(
+  userKey: string,
+  machineId: string,
+): Promise<ScanStats> {
+  const empty: ScanStats = { total: 0, last7: 0, last30: 0, daily: [] };
+  if (!dbConfigured() || !userKey || !machineId) return empty;
+  await ensureSchema();
+  const sql = getSql();
+  try {
+    const totals = (await sql`
+      select
+        count(*)::int as total,
+        count(*) filter (where occurred_at >= now() - interval '7 days')::int as last7,
+        count(*) filter (where occurred_at >= now() - interval '30 days')::int as last30
+      from landing_scans
+      where user_key = ${userKey} and machine_id = ${machineId}
+    `) as { total: number; last7: number; last30: number }[];
+
+    const rows = (await sql`
+      select to_char(g.day::date, 'Mon DD') as label, coalesce(c.n, 0)::int as value
+      from generate_series(current_date - interval '13 days', current_date, interval '1 day') as g(day)
+      left join (
+        select date_trunc('day', occurred_at)::date as day, count(*) as n
+        from landing_scans
+        where user_key = ${userKey} and machine_id = ${machineId}
+          and occurred_at >= current_date - interval '13 days'
+        group by 1
+      ) c on c.day = g.day::date
+      order by g.day
+    `) as { label: string; value: number }[];
+
+    const t = totals[0] ?? { total: 0, last7: 0, last30: 0 };
+    return {
+      total: t.total,
+      last7: t.last7,
+      last30: t.last30,
+      daily: rows.map((r) => ({
+        label: r.label,
+        value: r.value,
+        tip: `${r.value} scan${r.value === 1 ? "" : "s"} · ${r.label}`,
+      })),
+    };
+  } catch (e) {
+    console.error("getLandingScanStats failed", e);
+    return empty;
+  }
+}
+
 /* ---- cached planogram for the public page ---- */
 
 async function fetchPlanogram(

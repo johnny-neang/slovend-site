@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getCtx, machineLabel } from "@/lib/dashboard";
 import DashError from "@/components/DashError";
 import LandingManager from "@/components/LandingManager";
-import { getLandingConfig, listLandingAssets } from "@/lib/landing";
+import { getLandingConfig, listLandingAssets, getLandingScanStats } from "@/lib/landing";
 
 export const metadata: Metadata = { title: "Landing Page · Vendai" };
 export const dynamic = "force-dynamic";
@@ -29,10 +29,15 @@ export default async function LandingDashboardPage({
   const machineNumber = String(ctx.machine.MachineNumber ?? "");
   const config = ctx.email ? await getLandingConfig(ctx.email, ctx.machineId) : null;
   const assets = ctx.email ? await listLandingAssets(ctx.email, ctx.machineId) : [];
+  const scanStats = ctx.email
+    ? await getLandingScanStats(ctx.email, ctx.machineId)
+    : { total: 0, last7: 0, last30: 0, daily: [] };
 
-  const origin = process.env.AUTH_URL ?? "https://www.slovend.com";
+  const origin = (process.env.AUTH_URL ?? "https://www.slovend.com").replace(/\/$/, "");
   const handle = config?.slug || machineNumber;
-  const publicUrl = `${origin.replace(/\/$/, "")}/vending/${handle}`;
+  const publicUrl = `${origin}/vending/${handle}`;
+  const trackingUrl = `${origin}/q/${handle}`;
+  const qrLabel = config?.title || config?.slug || machineNumber || "slovend";
   const safeUser = (ctx.email ?? "").replace(/[^a-z0-9]/gi, "_");
   const uploadPrefix = `landing-assets/${safeUser}/${ctx.machineId}/`;
 
@@ -57,6 +62,9 @@ export default async function LandingDashboardPage({
           slug={config?.slug ?? null}
           location={config?.location ?? null}
           publicUrl={publicUrl}
+          trackingUrl={trackingUrl}
+          qrLabel={qrLabel}
+          scanStats={scanStats}
           uploadPrefix={uploadPrefix}
           assets={assets.map((a) => ({
             assetId: a.assetId,

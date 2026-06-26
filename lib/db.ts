@@ -186,6 +186,16 @@ export function ensureSchema(): Promise<void> {
         )
       `;
       await sql`create index if not exists machine_landing_assets_idx on machine_landing_assets (user_key, machine_id, order_idx)`;
+      await sql`
+        create table if not exists landing_scans (
+          id          bigserial primary key,
+          user_key    text not null,
+          machine_id  text not null,
+          source      text not null default 'qr',
+          occurred_at timestamptz not null default now()
+        )
+      `;
+      await sql`create index if not exists landing_scans_idx on landing_scans (user_key, machine_id, occurred_at desc)`;
     })();
   }
   return _schema;

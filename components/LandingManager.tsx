@@ -4,6 +4,9 @@ import { useRef, useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 import CopyField from "@/components/CopyField";
+import QrCard from "@/components/QrCard";
+import BarChart from "@/components/BarChart";
+import type { ScanStats } from "@/lib/landing";
 import {
   saveLandingConfig,
   persistLandingAsset,
@@ -21,6 +24,9 @@ type Props = {
   slug: string | null;
   location: string | null;
   publicUrl: string;
+  trackingUrl: string;
+  qrLabel: string;
+  scanStats: ScanStats;
   uploadPrefix: string; // landing-assets/<safeUser>/<machineId>/
   assets: Asset[];
   errorCode?: string | null;
@@ -40,6 +46,9 @@ export default function LandingManager({
   slug,
   location,
   publicUrl,
+  trackingUrl,
+  qrLabel,
+  scanStats,
   uploadPrefix,
   assets,
   errorCode,
@@ -241,6 +250,43 @@ export default function LandingManager({
           </ul>
         ) : (
           <p className="muted" style={{ fontSize: 13 }}>No assets yet.</p>
+        )}
+      </div>
+
+      {/* Share & QR */}
+      <div className="panel lp-share">
+        <h2 className="panel-title">Share &amp; QR</h2>
+        <QrCard trackingUrl={trackingUrl} label={qrLabel} />
+        <p className="note" style={{ marginTop: 4 }}>
+          The QR opens a short tracked link that counts each scan, then forwards to your page.
+        </p>
+      </div>
+
+      {/* QR scans */}
+      <div className="panel lp-scans">
+        <h2 className="panel-title">QR scans</h2>
+        <div className="lp-stats">
+          <div className="tile">
+            <div className="l">Total</div>
+            <div className="n">{scanStats.total.toLocaleString()}</div>
+          </div>
+          <div className="tile">
+            <div className="l">Last 7 days</div>
+            <div className="n">{scanStats.last7.toLocaleString()}</div>
+          </div>
+          <div className="tile">
+            <div className="l">Last 30 days</div>
+            <div className="n">{scanStats.last30.toLocaleString()}</div>
+          </div>
+        </div>
+        {scanStats.daily.some((d) => d.value > 0) ? (
+          <div style={{ marginTop: 14 }}>
+            <BarChart data={scanStats.daily} tone="light" height={120} />
+          </div>
+        ) : (
+          <p className="muted" style={{ fontSize: 13, marginTop: 12 }}>
+            No scans yet — share your QR to get started.
+          </p>
         )}
       </div>
     </div>
