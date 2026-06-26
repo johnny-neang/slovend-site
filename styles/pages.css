@@ -609,6 +609,8 @@ tr.tx-total td { font-family: var(--label); font-weight: 800; border-top: 2px so
 .lp-qr-cap { font-family: var(--label); font-size: 11px; letter-spacing: .04em; color: var(--ink-faint); text-align: center; margin: 0; }
 .lp-qr-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .lp-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.lp-col { display: flex; flex-direction: column; gap: clamp(16px,2.5vw,24px); min-width: 0; }
+.lp-subsection { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line-soft); }
 @media (max-width: 860px) { .lp-grid { grid-template-columns: 1fr; } }
 @media (max-width: 420px) { .lp-stats { grid-template-columns: 1fr; } }
 
