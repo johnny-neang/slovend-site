@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getConnection } from "@/lib/connections";
 import { getProductMedia } from "@/lib/product-media";
-import { buildInventoryRows } from "@/lib/inventory-view";
+import { buildInventoryRows, packInventoryGrid } from "@/lib/inventory-view";
 import type { CatalogProduct } from "@/lib/nayax";
 import {
   resolveLanding,
@@ -12,7 +12,7 @@ import {
 } from "@/lib/landing";
 import VendGrid, { type VendProduct } from "@/components/vending/VendGrid";
 import VendCarousel from "@/components/vending/VendCarousel";
-import VendCta from "@/components/vending/VendCta";
+import VendFeedback from "@/components/vending/VendFeedback";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const resolved = await resolveLanding(handle);
   if (!resolved) return { title: "Slovend" };
   const config = await getLandingConfig(resolved.userKey, resolved.machineId);
-  const name = config?.machineName || "Vending";
+  const name = config?.title || config?.slug || config?.machineNumber || "Vending";
   return { title: `${name} · Slovend`, robots: { index: false } };
 }
 
@@ -47,18 +47,25 @@ export default async function VendingPage({ params }: PageProps) {
   const catalog = new Map<number, CatalogProduct>(planogram.catalogEntries);
   const rows = buildInventoryRows({ products: planogram.products, media, catalog });
 
-  const products: VendProduct[] = rows
-    .filter((r) => r.slot !== "—")
-    .map((r) => ({
-      id: r.key,
-      name: r.name,
-      price: r.price,
-      image: r.image,
-      description: r.description,
-      out: r.out,
-    }));
+  // Group into machine rows (row 1 = 100s, row 2 = 200s, …), packed left-to-right.
+  const grid = packInventoryGrid(rows.filter((r) => r.slot !== "—")).map((g) => ({
+    rowNum: g.rowNum,
+    items: g.items.map(
+      (r): VendProduct => ({
+        id: r.key,
+        name: r.name,
+        slot: r.slot,
+        price: r.price,
+        image: r.image,
+        description: r.description,
+        out: r.out,
+      }),
+    ),
+  }));
+  const itemCount = grid.reduce((n, g) => n + g.items.length, 0);
 
-  const machineName = config?.machineName || "Our machine";
+  const headerTitle =
+    config?.title || config?.slug || config?.machineNumber || "Our machine";
   const location = config?.location || "";
 
   return (
@@ -66,12 +73,12 @@ export default async function VendingPage({ params }: PageProps) {
       <header className="vend-head">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img className="vend-wordmark" src="/assets/slovend-wordmark.png" alt="Slovend" />
-        <h1 className="vend-machine-name">{machineName}</h1>
+        <h1 className="vend-machine-name">{headerTitle}</h1>
         {location ? <p className="vend-location">{location}</p> : null}
       </header>
 
-      {products.length ? (
-        <VendGrid products={products} />
+      {itemCount ? (
+        <VendGrid rows={grid} />
       ) : (
         <p className="vend-empty">Menu is being updated — check back shortly.</p>
       )}
@@ -84,7 +91,7 @@ export default async function VendingPage({ params }: PageProps) {
         }))}
       />
 
-      <VendCta />
+      <VendFeedback handle={handle} />
 
       <footer className="vend-foot">Powered by Slovend</footer>
     </main>

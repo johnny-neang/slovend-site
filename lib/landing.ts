@@ -22,6 +22,7 @@ export type LandingConfig = {
   machineNumber: string;
   slug: string | null;
   enabled: boolean;
+  title: string | null;
   machineName: string | null;
   location: string | null;
   publishedAt: string | null;
@@ -75,6 +76,7 @@ type ConfigRow = {
   machine_number: string;
   slug: string | null;
   enabled: boolean;
+  title: string | null;
   machine_name: string | null;
   location: string | null;
   published_at: string | null;
@@ -88,6 +90,7 @@ function toConfig(r: ConfigRow): LandingConfig {
     machineNumber: r.machine_number,
     slug: r.slug,
     enabled: r.enabled,
+    title: r.title,
     machineName: r.machine_name,
     location: r.location,
     publishedAt: r.published_at,
@@ -128,7 +131,7 @@ export async function getLandingConfig(
   const sql = getSql();
   const rows = (await sql`
     select user_key, machine_id, machine_number, slug, enabled,
-           machine_name, location, published_at, updated_at
+           title, machine_name, location, published_at, updated_at
     from machine_landing
     where user_key = ${userKey} and machine_id = ${machineId}
   `) as ConfigRow[];
@@ -154,6 +157,7 @@ export async function upsertLandingConfig(input: {
   machineName: string | null;
   slug: string | null;
   enabled: boolean;
+  title: string | null;
   location: string | null;
 }): Promise<LandingConfig> {
   if (!dbConfigured()) throw new LandingError("db", "Database not configured");
@@ -172,15 +176,16 @@ export async function upsertLandingConfig(input: {
   try {
     const rows = (await sql`
       insert into machine_landing
-        (user_key, machine_id, machine_number, slug, enabled, machine_name, location, published_at, updated_at)
+        (user_key, machine_id, machine_number, slug, enabled, title, machine_name, location, published_at, updated_at)
       values
         (${input.userKey}, ${input.machineId}, ${input.machineNumber}, ${slug},
-         ${input.enabled}, ${input.machineName}, ${input.location},
+         ${input.enabled}, ${input.title}, ${input.machineName}, ${input.location},
          case when ${input.enabled} then now() else null end, now())
       on conflict (user_key, machine_id) do update set
         machine_number = excluded.machine_number,
         slug           = excluded.slug,
         enabled        = excluded.enabled,
+        title          = excluded.title,
         machine_name   = excluded.machine_name,
         location       = excluded.location,
         published_at   = case
@@ -188,7 +193,7 @@ export async function upsertLandingConfig(input: {
           else machine_landing.published_at end,
         updated_at     = now()
       returning user_key, machine_id, machine_number, slug, enabled,
-                machine_name, location, published_at, updated_at
+                title, machine_name, location, published_at, updated_at
     `) as ConfigRow[];
     return toConfig(rows[0]);
   } catch (e) {

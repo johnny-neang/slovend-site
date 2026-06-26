@@ -53,6 +53,7 @@ export default async function LandingDashboardPage({
         <LandingManager
           machineNumber={machineNumber}
           enabled={config?.enabled ?? false}
+          title={config?.title ?? null}
           slug={config?.slug ?? null}
           location={config?.location ?? null}
           publicUrl={publicUrl}

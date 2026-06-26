@@ -171,6 +171,7 @@ export function ensureSchema(): Promise<void> {
       `;
       await sql`create unique index if not exists machine_landing_slug_idx on machine_landing (slug) where slug is not null`;
       await sql`create unique index if not exists machine_landing_number_idx on machine_landing (machine_number)`;
+      await sql`alter table machine_landing add column if not exists title text`;
       await sql`
         create table if not exists machine_landing_assets (
           asset_id    text primary key,

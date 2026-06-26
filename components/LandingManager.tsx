@@ -17,6 +17,7 @@ type Asset = { assetId: string; mediaType: "image" | "video"; blobUrl: string; o
 type Props = {
   machineNumber: string;
   enabled: boolean;
+  title: string | null;
   slug: string | null;
   location: string | null;
   publicUrl: string;
@@ -35,6 +36,7 @@ function extOf(file: File): string {
 export default function LandingManager({
   machineNumber,
   enabled,
+  title,
   slug,
   location,
   publicUrl,
@@ -131,6 +133,14 @@ export default function LandingManager({
         <label className="lp-switch">
           <input type="checkbox" name="enabled" defaultChecked={enabled} />
           <span>Make this machine&apos;s page public</span>
+        </label>
+
+        <label className="pm-field">
+          <span>Header title (optional)</span>
+          <input name="title" defaultValue={title ?? ""} placeholder="e.g. Snacks &amp; Drinks" />
+          <span className="lp-hint muted">
+            Shown at the top of the public page. Falls back to the slug, then the machine number.
+          </span>
         </label>
 
         <label className="pm-field">

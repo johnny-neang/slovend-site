@@ -35,11 +35,12 @@ export async function saveLandingConfig(formData: FormData): Promise<void> {
   const { userKey, machineId, machineNumber, machineName } = await requireCtx();
   const slug = String(formData.get("slug") ?? "").trim() || null;
   const enabled = formData.get("enabled") === "on" || formData.get("enabled") === "true";
+  const title = String(formData.get("title") ?? "").trim() || null;
   const location = String(formData.get("location") ?? "").trim() || null;
 
   try {
     await upsertLandingConfig({
-      userKey, machineId, machineNumber, machineName, slug, enabled, location,
+      userKey, machineId, machineNumber, machineName, slug, enabled, title, location,
     });
   } catch (e) {
     if (e instanceof LandingError) {
