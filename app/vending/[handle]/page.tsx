@@ -48,7 +48,14 @@ export default async function VendingPage({ params }: PageProps) {
   const rows = buildInventoryRows({ products: planogram.products, media, catalog });
 
   // Group into machine rows (row 1 = 100s, row 2 = 200s, …), packed left-to-right.
-  const grid = packInventoryGrid(rows.filter((r) => r.slot !== "—")).map((g) => ({
+  // Drop "—" (unmapped), operator-hidden phantoms, and bare manual declarations
+  // (a slot tracked internally with no name/photo/description) so customers only
+  // ever see real, filled-in products.
+  const grid = packInventoryGrid(
+    rows.filter(
+      (r) => r.slot !== "—" && !r.hidden && !(r.presence === "manual" && r.source === null),
+    ),
+  ).map((g) => ({
     rowNum: g.rowNum,
     items: g.items.map(
       (r): VendProduct => ({

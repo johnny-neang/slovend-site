@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { getCtx, machineLabel } from "@/lib/dashboard";
 import DashError from "@/components/DashError";
 import ProductMediaEditor from "@/components/ProductMediaEditor";
+import AddSlotEditor from "@/components/AddSlotEditor";
+import { setSlotHidden } from "@/app/dashboard/inventory/actions";
 import { getProductMedia, type ProductMedia } from "@/lib/product-media";
 import {
   getMachineProducts,
@@ -13,12 +15,36 @@ import {
   type Product,
   type CatalogProduct,
 } from "@/lib/nayax";
-import { buildInventoryRows, packInventoryGrid } from "@/lib/inventory-view";
+import {
+  buildInventoryRows,
+  packInventoryGrid,
+  type InvRow,
+} from "@/lib/inventory-view";
 
 export const metadata: Metadata = { title: "Inventory · Vendai" };
 export const dynamic = "force-dynamic";
 
-type SP = { view?: string };
+type SP = { view?: string; hidden?: string };
+
+/** Small server-action form to hide/unhide a slot (mdbCode 0 = unmapped group). */
+function HideForm({ mdbCode, hidden, label }: { mdbCode: number; hidden: boolean; label: string }) {
+  return (
+    <form action={setSlotHidden} className="inv-hide-form">
+      <input type="hidden" name="mdbCode" value={mdbCode} />
+      <input type="hidden" name="hidden" value={hidden ? "1" : "0"} />
+      <button type="submit" className="inv-hide-btn">
+        {label}
+      </button>
+    </form>
+  );
+}
+
+/** Presence pill: declared-but-absent ("Not in Nayax") or linked after declaring ("Synced"). */
+function PresenceBadge({ row }: { row: InvRow }) {
+  if (row.presence === "manual") return <span className="inv-pres manual">Not in Nayax</span>;
+  if (row.manual?.manualSlot) return <span className="inv-pres synced">Synced</span>;
+  return null;
+}
 
 export default async function InventoryPage({
   searchParams,
@@ -35,7 +61,9 @@ export default async function InventoryPage({
       />
     );
 
-  const view: "list" | "grid" = (await searchParams).view === "grid" ? "grid" : "list";
+  const sp = await searchParams;
+  const view: "list" | "grid" = sp.view === "grid" ? "grid" : "list";
+  const showHidden = sp.hidden === "1";
 
   const products = await getMachineProducts(ctx.conn, ctx.machineId).catch(
     () => [] as Product[],
@@ -55,10 +83,24 @@ export default async function InventoryPage({
       )
     : new Map<number, CatalogProduct>();
 
-  // Precedence per slot: manual override -> Nayax catalog -> bare slot.
+  // Union of Nayax products + operator-declared manual slots, with precedence
+  // per slot: manual override -> Nayax catalog -> bare slot.
   const rows = buildInventoryRows({ products, media, catalog });
+  const visible = rows.filter((r) => !r.hidden);
+  const hiddenCount = rows.length - visible.length;
+  const unmappedHidden = media.get(0)?.hidden === true;
   // Group by row, pack each row left-to-right by column (no gaps).
-  const gridRows = packInventoryGrid(rows);
+  const gridRows = packInventoryGrid(showHidden ? rows : visible);
+  const listRows = showHidden ? rows : visible;
+
+  // Preserve view/hidden across links.
+  const href = (v: "list" | "grid", h: boolean) => {
+    const p = new URLSearchParams();
+    if (v === "grid") p.set("view", "grid");
+    if (h) p.set("hidden", "1");
+    const q = p.toString();
+    return q ? `/dashboard/inventory?${q}` : "/dashboard/inventory";
+  };
 
   return (
     <section className="section dash-page">
@@ -70,41 +112,59 @@ export default async function InventoryPage({
           </div>
           <div className="report-controls">
             <div className="range-tabs">
-              <Link
-                href="/dashboard/inventory"
-                className={view === "list" ? "active" : undefined}
-              >
+              <Link href={href("list", showHidden)} className={view === "list" ? "active" : undefined}>
                 List
               </Link>
-              <Link
-                href="/dashboard/inventory?view=grid"
-                className={view === "grid" ? "active" : undefined}
-              >
+              <Link href={href("grid", showHidden)} className={view === "grid" ? "active" : undefined}>
                 Grid
               </Link>
             </div>
+            <AddSlotEditor />
             <span className={`status ${low.length ? "off" : "live"}`}>
               <span className="dot" />
               {low.length
-                ? `${low.length} need attention / ${products.length}`
-                : `${products.length} selections`}
+                ? `${low.length} need attention / ${visible.length}`
+                : `${visible.length} selections`}
             </span>
           </div>
         </div>
 
+        {hiddenCount > 0 ? (
+          <p className="inv-hidden-note">
+            {showHidden ? (
+              <>
+                Showing {hiddenCount} hidden {hiddenCount === 1 ? "selection" : "selections"}.{" "}
+                <Link href={href(view, false)}>Hide phantoms</Link>
+              </>
+            ) : (
+              <>
+                {hiddenCount} hidden {hiddenCount === 1 ? "selection" : "selections"}.{" "}
+                <Link href={href(view, true)}>Show</Link>
+              </>
+            )}
+          </p>
+        ) : null}
+
         {view === "grid" ? (
-          products.length ? (
+          gridRows.length ? (
             <div className="inv-grid">
               {gridRows.map(({ rowNum, items }) => (
                 <div key={rowNum}>
                   <div className="inv-row-label">
-                    {rowNum === 9999 ? "Other" : `Row ${rowNum}`}
+                    <span>{rowNum === 9999 ? "Other" : `Row ${rowNum}`}</span>
+                    {rowNum === 9999 ? (
+                      <HideForm
+                        mdbCode={0}
+                        hidden={!unmappedHidden}
+                        label={unmappedHidden ? "Unhide unmapped" : "Hide unmapped (MDB 0)"}
+                      />
+                    ) : null}
                   </div>
                   <div className="inv-cards">
                     {items.map((r) => (
                       <div
                         key={r.key}
-                        className={`inv-card${r.out ? " is-out" : r.low ? " is-low" : ""}`}
+                        className={`inv-card${r.hidden ? " is-hidden" : r.out ? " is-out" : r.low ? " is-low" : ""}`}
                       >
                         <div className="inv-thumb">
                           {r.image ? (
@@ -136,23 +196,39 @@ export default async function InventoryPage({
                             )}
                           </div>
                           <div className="inv-card-meta">
-                            {r.source === "manual" ? (
-                              <span className="inv-src manual">Manual</span>
-                            ) : r.source === "nayax" ? (
-                              <span className="inv-src nayax">Nayax</span>
-                            ) : (
-                              <span className="inv-src none">No info</span>
-                            )}
-                            {r.mdb != null && r.mdb > 0 ? (
-                              <ProductMediaEditor
-                                mdbCode={r.mdb}
-                                slot={r.slot}
-                                hasManual={Boolean(r.manual)}
-                                initialName={r.manual?.name ?? null}
-                                initialDescription={r.manual?.description ?? null}
-                                initialImageUrl={r.manual?.imageUrl ?? null}
-                              />
-                            ) : null}
+                            <span className="inv-badges">
+                              {r.source === "manual" ? (
+                                <span className="inv-src manual">Manual</span>
+                              ) : r.source === "nayax" ? (
+                                <span className="inv-src nayax">Nayax</span>
+                              ) : (
+                                <span className="inv-src none">No info</span>
+                              )}
+                              {r.hidden ? (
+                                <span className="inv-pres hidden">Hidden</span>
+                              ) : (
+                                <PresenceBadge row={r} />
+                              )}
+                            </span>
+                            <span className="inv-actions">
+                              {r.mdb != null && r.mdb > 0 ? (
+                                <>
+                                  <ProductMediaEditor
+                                    mdbCode={r.mdb}
+                                    slot={r.slot}
+                                    hasManual={Boolean(r.manual)}
+                                    initialName={r.manual?.name ?? null}
+                                    initialDescription={r.manual?.description ?? null}
+                                    initialImageUrl={r.manual?.imageUrl ?? null}
+                                  />
+                                  <HideForm
+                                    mdbCode={r.mdb}
+                                    hidden={!r.hidden}
+                                    label={r.hidden ? "Unhide" : "Hide"}
+                                  />
+                                </>
+                              ) : null}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -164,7 +240,7 @@ export default async function InventoryPage({
           ) : (
             <div className="table-card">
               <p className="muted" style={{ padding: 16 }}>
-                No planogram returned by Lynx.
+                No planogram returned by Lynx. Use <strong>+ Add slot</strong> to declare one.
               </p>
             </div>
           )
@@ -183,9 +259,9 @@ export default async function InventoryPage({
                 </tr>
               </thead>
               <tbody>
-                {rows.length ? (
-                  rows.map((r) => (
-                    <tr key={r.key} className={r.low ? "row-low" : undefined}>
+                {listRows.length ? (
+                  listRows.map((r) => (
+                    <tr key={r.key} className={r.hidden ? "row-hidden" : r.low ? "row-low" : undefined}>
                       <td className="mono">{r.slot || "—"}</td>
                       <td className="r mono muted">{r.mdb ?? "—"}</td>
                       <td>
@@ -199,6 +275,15 @@ export default async function InventoryPage({
                             Nayax
                           </span>
                         ) : null}
+                        {r.hidden ? (
+                          <span className="inv-pres hidden" style={{ marginLeft: 8 }}>
+                            Hidden
+                          </span>
+                        ) : (
+                          <span style={{ marginLeft: 8 }}>
+                            <PresenceBadge row={r} />
+                          </span>
+                        )}
                       </td>
                       <td className="r">
                         {r.price != null ? `$${r.price.toFixed(2)}` : "—"}
@@ -206,20 +291,29 @@ export default async function InventoryPage({
                       <td className="r muted">{r.par ?? "—"}</td>
                       <td className="r muted">{r.missing ?? "—"}</td>
                       <td>
-                        {r.out ? (
-                          <span className="badge-low">Vended out</span>
-                        ) : r.low ? (
-                          <span className="badge-low">Low</span>
-                        ) : (
-                          <span className="badge-ok">OK</span>
-                        )}
+                        <span className="inv-status-cell">
+                          {r.out ? (
+                            <span className="badge-low">Vended out</span>
+                          ) : r.low ? (
+                            <span className="badge-low">Low</span>
+                          ) : (
+                            <span className="badge-ok">OK</span>
+                          )}
+                          {r.mdb != null && r.mdb > 0 ? (
+                            <HideForm
+                              mdbCode={r.mdb}
+                              hidden={!r.hidden}
+                              label={r.hidden ? "Unhide" : "Hide"}
+                            />
+                          ) : null}
+                        </span>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
                     <td colSpan={7} className="muted">
-                      No planogram returned by Lynx.
+                      No planogram returned by Lynx. Use “+ Add slot” to declare one.
                     </td>
                   </tr>
                 )}
@@ -239,6 +333,12 @@ export default async function InventoryPage({
           available (flagged <strong>Nayax</strong>); otherwise add them per slot
           in the grid and they&apos;re flagged <strong>Manual</strong>. &quot;Sold↑&quot;
           = units sold since last refill.
+        </p>
+        <p className="note" style={{ textAlign: "left", marginTop: 6 }}>
+          Nayax is the source of truth. If a slot is missing, <strong>+ Add slot</strong>{" "}
+          declares it manually (flagged <strong>Not in Nayax</strong>); it switches to{" "}
+          <strong>Synced</strong> once Nayax starts reporting that MDB code. Use{" "}
+          <strong>Hide</strong> to suppress phantom selections such as MDB&nbsp;0.
         </p>
       </div>
     </section>

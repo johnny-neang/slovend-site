@@ -15,6 +15,8 @@ export type ProductMedia = {
   imageUrl: string | null;
   imagePath: string | null;
   source: "manual";
+  manualSlot: boolean; // operator-declared slot (may not be in Nayax yet)
+  hidden: boolean; // suppressed phantom; mdb_code 0 = hide the unmapped group
   updatedAt: string;
 };
 
@@ -25,6 +27,8 @@ type Row = {
   image_url: string | null;
   image_path: string | null;
   source: string;
+  manual_slot: boolean;
+  hidden: boolean;
   updated_at: string;
 };
 
@@ -36,6 +40,8 @@ function toMedia(r: Row): ProductMedia {
     imageUrl: r.image_url,
     imagePath: r.image_path,
     source: "manual",
+    manualSlot: r.manual_slot === true,
+    hidden: r.hidden === true,
     updatedAt: r.updated_at,
   };
 }
@@ -51,7 +57,7 @@ export async function getProductMedia(
   const sql = getSql();
   try {
     const rows = (await sql`
-      select mdb_code, name, description, image_url, image_path, source, updated_at
+      select mdb_code, name, description, image_url, image_path, source, manual_slot, hidden, updated_at
       from machine_product_media
       where user_key = ${userKey} and machine_id = ${machineId}
     `) as Row[];
@@ -72,7 +78,7 @@ export async function getOneProductMedia(
   await ensureSchema();
   const sql = getSql();
   const rows = (await sql`
-    select mdb_code, name, description, image_url, image_path, source, updated_at
+    select mdb_code, name, description, image_url, image_path, source, manual_slot, hidden, updated_at
     from machine_product_media
     where user_key = ${userKey} and machine_id = ${machineId} and mdb_code = ${mdbCode}
   `) as Row[];
@@ -93,25 +99,53 @@ export async function upsertProductMedia(
     description?: string | null;
     imageUrl?: string | null;
     imagePath?: string | null;
+    manualSlot?: boolean; // declares the slot; sticky (never un-set by a media edit)
   },
 ): Promise<void> {
   if (!dbConfigured() || !userKey || !machineId) return;
   await ensureSchema();
   const sql = getSql();
+  const manualSlot = fields.manualSlot === true;
   await sql`
     insert into machine_product_media
-      (user_key, machine_id, mdb_code, name, description, image_url, image_path, source, updated_at)
+      (user_key, machine_id, mdb_code, name, description, image_url, image_path, source, manual_slot, updated_at)
     values
       (${userKey}, ${machineId}, ${mdbCode}, ${fields.name ?? null},
        ${fields.description ?? null}, ${fields.imageUrl ?? null},
-       ${fields.imagePath ?? null}, 'manual', now())
+       ${fields.imagePath ?? null}, 'manual', ${manualSlot}, now())
     on conflict (user_key, machine_id, mdb_code) do update set
       name        = excluded.name,
       description = excluded.description,
       image_url   = coalesce(excluded.image_url, machine_product_media.image_url),
       image_path  = coalesce(excluded.image_path, machine_product_media.image_path),
       source      = 'manual',
+      manual_slot = machine_product_media.manual_slot or excluded.manual_slot,
       updated_at  = now()
+  `;
+}
+
+/**
+ * Toggle just the `hidden` flag for one slot, without touching name/description/
+ * image. Inserts a minimal row when none exists. `mdbCode` 0 is allowed and acts
+ * as the "hide all unmapped (MDB 0)" sentinel.
+ */
+export async function setProductMediaFlags(
+  userKey: string,
+  machineId: string,
+  mdbCode: number,
+  fields: { hidden: boolean },
+): Promise<void> {
+  if (!dbConfigured() || !userKey || !machineId) return;
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    insert into machine_product_media
+      (user_key, machine_id, mdb_code, source, hidden, updated_at)
+    values
+      (${userKey}, ${machineId}, ${mdbCode}, 'manual', ${fields.hidden}, now())
+    on conflict (user_key, machine_id, mdb_code) do update set
+      hidden     = excluded.hidden,
+      updated_at = now()
   `;
 }
 

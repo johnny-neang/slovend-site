@@ -8,7 +8,9 @@ import {
   getOneProductMedia,
   upsertProductMedia,
   deleteProductMedia,
+  setProductMediaFlags,
 } from "@/lib/product-media";
+import { slotToMdb } from "@/lib/slot-code";
 
 const MAX_BYTES = 8 * 1024 * 1024; // 8MB ceiling (images are downscaled client-side first)
 
@@ -31,8 +33,18 @@ function extFromFile(file: File): string {
 export async function saveProductMedia(formData: FormData): Promise<void> {
   const { userKey, machineId } = await requireCtx();
 
-  const mdbCode = Math.trunc(Number(formData.get("mdbCode")));
-  if (!Number.isFinite(mdbCode) || mdbCode <= 0) redirect("/dashboard/inventory?view=grid");
+  // Manual-add path: operator declares a slot Nayax isn't returning. The MDB code
+  // is derived (and re-validated) server-side from the slot they entered.
+  const manualSlot = formData.get("manualSlot") === "1";
+  let mdbCode: number;
+  if (manualSlot) {
+    const derived = slotToMdb(String(formData.get("slot") ?? ""));
+    if (derived == null) redirect("/dashboard/inventory?view=grid&error=slot");
+    mdbCode = derived;
+  } else {
+    mdbCode = Math.trunc(Number(formData.get("mdbCode")));
+    if (!Number.isFinite(mdbCode) || mdbCode <= 0) redirect("/dashboard/inventory?view=grid");
+  }
 
   const name = String(formData.get("name") ?? "").trim() || null;
   const description = String(formData.get("description") ?? "").trim() || null;
@@ -66,8 +78,22 @@ export async function saveProductMedia(formData: FormData): Promise<void> {
     description,
     imageUrl: imageUrl ?? null,
     imagePath: imagePath ?? null,
+    manualSlot: manualSlot || undefined,
   });
 
+  revalidatePath("/dashboard/inventory");
+}
+
+/** Hide or unhide a slot (phantom suppression). `mdbCode` 0 hides the whole
+ * unmapped/"Other" (MDB 0) group. Unlike the media actions, mdb 0 is allowed. */
+export async function setSlotHidden(formData: FormData): Promise<void> {
+  const { userKey, machineId } = await requireCtx();
+
+  const mdbCode = Math.trunc(Number(formData.get("mdbCode")));
+  if (!Number.isFinite(mdbCode) || mdbCode < 0) redirect("/dashboard/inventory?view=grid");
+
+  const hidden = formData.get("hidden") === "1";
+  await setProductMediaFlags(userKey, machineId, mdbCode, { hidden });
   revalidatePath("/dashboard/inventory");
 }
 

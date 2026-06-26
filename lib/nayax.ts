@@ -1,4 +1,5 @@
 import "server-only";
+import { mdbToSlot } from "@/lib/slot-code";
 
 /**
  * Nayax Lynx API client. Stateless: every call takes the caller's connection
@@ -330,11 +331,7 @@ export function productMdbCode(p: Product): number | null {
  */
 export function productSlot(p: Product): string {
   const code = productMdbCode(p);
-  if (code !== null && code > 0) {
-    const row = code >> 8; // high byte
-    const col = code & 0xff; // low byte
-    return `${row}${String(col).padStart(2, "0")}`;
-  }
+  if (code !== null && code > 0) return mdbToSlot(code);
   if (code === 0) return "—";
   return pickStr(p, ["PACode", "Selection", "Slot", "OperatorButtonCode"]);
 }

@@ -155,6 +155,10 @@ export function ensureSchema(): Promise<void> {
           primary key (user_key, machine_id, mdb_code)
         )
       `;
+      // Operator can declare a slot Nayax isn't returning yet (manual_slot), and
+      // hide a phantom Nayax entry such as MDB 0 (hidden). Both default false.
+      await sql`alter table machine_product_media add column if not exists manual_slot boolean not null default false`;
+      await sql`alter table machine_product_media add column if not exists hidden boolean not null default false`;
       await sql`
         create table if not exists machine_landing (
           user_key       text not null,
