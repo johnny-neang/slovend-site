@@ -6,6 +6,7 @@ import {
   getMachineProducts,
   productName,
   productSlot,
+  productMdbCode,
   productPar,
   productPrice,
   productMissing,
@@ -52,6 +53,7 @@ export default async function InventoryPage() {
             <thead>
               <tr>
                 <th>Slot</th>
+                <th className="r">MDB</th>
                 <th>Product</th>
                 <th className="r">Price</th>
                 <th className="r">Par</th>
@@ -63,6 +65,7 @@ export default async function InventoryPage() {
               {products.length ? (
                 products.map((p, i) => {
                   const bay = productSlot(p);
+                  const mdb = productMdbCode(p);
                   const par = productPar(p);
                   const price = productPrice(p);
                   const missing = productMissing(p);
@@ -71,6 +74,7 @@ export default async function InventoryPage() {
                   return (
                     <tr key={i} className={low2 ? "row-low" : undefined}>
                       <td className="mono">{bay || "—"}</td>
+                      <td className="r mono muted">{mdb ?? "—"}</td>
                       <td>{productName(p) || (bay ? `Selection ${bay}` : "—")}</td>
                       <td className="r">{price != null ? `$${price.toFixed(2)}` : "—"}</td>
                       <td className="r muted">{par ?? "—"}</td>
@@ -89,7 +93,7 @@ export default async function InventoryPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="muted">
+                  <td colSpan={7} className="muted">
                     No planogram returned by Lynx.
                   </td>
                 </tr>
@@ -98,6 +102,11 @@ export default async function InventoryPage() {
           </table>
         </div>
         <p className="note" style={{ textAlign: "left", marginTop: 14 }}>
+          &quot;MDB&quot; = the raw MDBCode reported by Lynx. &quot;Slot&quot; is decoded
+          from it — row = MDB ÷ 256 (high byte), column = MDB mod 256 (low byte),
+          shown as row + column zero-padded to two digits (e.g. MDB 1032 → 408).
+        </p>
+        <p className="note" style={{ textAlign: "left", marginTop: 6 }}>
           &quot;Sold↑&quot; = units sold since last refill · live stock counts appear when the machine reports DEX/planogram data
         </p>
       </div>

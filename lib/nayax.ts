@@ -317,6 +317,11 @@ export function productName(p: Product): string {
 export function productBay(p: Product): string {
   return pickStr(p, ["MDBCode", "Selection", "Bay", "Code", "Column", "Position", "Slot", "PACode"]);
 }
+/** Raw MDBCode integer as reported by Lynx — the value productSlot decodes the
+ * human slot/selection from. Null when the planogram row carries no MDBCode. */
+export function productMdbCode(p: Product): number | null {
+  return pickNum(p, ["MDBCode"]);
+}
 /**
  * Human selection/slot from the Lynx MDBCode, which packs row in the high byte
  * and column in the low byte. The slot is the row followed by the column
@@ -324,7 +329,7 @@ export function productBay(p: Product): string {
  * MDBCode 0 -> "—". Falls back to an explicit selection field if no MDBCode.
  */
 export function productSlot(p: Product): string {
-  const code = pickNum(p, ["MDBCode"]);
+  const code = productMdbCode(p);
   if (code !== null && code > 0) {
     const row = code >> 8; // high byte
     const col = code & 0xff; // low byte
