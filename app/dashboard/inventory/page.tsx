@@ -7,46 +7,18 @@ import ProductMediaEditor from "@/components/ProductMediaEditor";
 import { getProductMedia, type ProductMedia } from "@/lib/product-media";
 import {
   getMachineProducts,
-  productName,
-  productSlot,
-  productMdbCode,
   productNayaxId,
-  productPar,
-  productPrice,
-  productMissing,
-  productVendedOut,
   productLowStock,
   getCatalogProducts,
-  catalogName,
-  catalogImage,
-  catalogDescription,
   type Product,
   type CatalogProduct,
 } from "@/lib/nayax";
+import { buildInventoryRows, packInventoryGrid } from "@/lib/inventory-view";
 
 export const metadata: Metadata = { title: "Inventory · Vendai" };
 export const dynamic = "force-dynamic";
 
 type SP = { view?: string };
-type Source = "manual" | "nayax" | null;
-
-type InvRow = {
-  key: string;
-  slot: string;
-  rowNum: number; // 9999 = "Other" (unmapped / MDB 0)
-  col: number;
-  mdb: number | null;
-  name: string;
-  image: string | null;
-  description: string | null;
-  source: Source;
-  price: number | null;
-  par: number | null;
-  missing: number | null;
-  out: boolean;
-  low: boolean;
-  manual: ProductMedia | null;
-};
 
 export default async function InventoryPage({
   searchParams,
@@ -84,67 +56,9 @@ export default async function InventoryPage({
     : new Map<number, CatalogProduct>();
 
   // Precedence per slot: manual override -> Nayax catalog -> bare slot.
-  const rows: InvRow[] = products.map((p, i) => {
-    const slot = productSlot(p);
-    const mdb = productMdbCode(p);
-    const nayaxId = productNayaxId(p);
-    const cat = nayaxId ? catalog.get(nayaxId) : undefined;
-    const man = mdb != null && mdb > 0 ? media.get(mdb) ?? null : null;
-    const fallbackName =
-      productName(p) || (slot !== "—" ? `Selection ${slot}` : "—");
-
-    let name = fallbackName;
-    let image: string | null = null;
-    let description: string | null = null;
-    let source: Source = null;
-
-    if (man && (man.name || man.imageUrl || man.description)) {
-      name = man.name || fallbackName;
-      image = man.imageUrl;
-      description = man.description;
-      source = "manual";
-    } else if (cat && (catalogName(cat) || catalogImage(cat))) {
-      name = catalogName(cat) || fallbackName;
-      image = catalogImage(cat) || null;
-      description = catalogDescription(cat) || null;
-      source = "nayax";
-    }
-
-    const rowNum = slot !== "—" ? Number(slot.slice(0, -2)) : NaN;
-    const col = slot !== "—" ? Number(slot.slice(-2)) : NaN;
-
-    return {
-      key: String(i),
-      slot,
-      rowNum: Number.isFinite(rowNum) ? rowNum : 9999,
-      col: Number.isFinite(col) ? col : 0,
-      mdb,
-      name,
-      image,
-      description,
-      source,
-      price: productPrice(p),
-      par: productPar(p),
-      missing: productMissing(p),
-      out: productVendedOut(p),
-      low: productLowStock(p),
-      manual: man,
-    };
-  });
-
+  const rows = buildInventoryRows({ products, media, catalog });
   // Group by row, pack each row left-to-right by column (no gaps).
-  const byRow = new Map<number, InvRow[]>();
-  for (const r of rows) {
-    const arr = byRow.get(r.rowNum) ?? [];
-    arr.push(r);
-    byRow.set(r.rowNum, arr);
-  }
-  const gridRows = [...byRow.entries()]
-    .sort(([a], [b]) => a - b)
-    .map(([n, items]) => ({
-      rowNum: n,
-      items: items.sort((a, b) => a.col - b.col),
-    }));
+  const gridRows = packInventoryGrid(rows);
 
   return (
     <section className="section dash-page">

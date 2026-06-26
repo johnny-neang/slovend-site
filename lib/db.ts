@@ -155,6 +155,36 @@ export function ensureSchema(): Promise<void> {
           primary key (user_key, machine_id, mdb_code)
         )
       `;
+      await sql`
+        create table if not exists machine_landing (
+          user_key       text not null,
+          machine_id     text not null,
+          machine_number text not null,
+          slug           text,
+          enabled        boolean not null default false,
+          machine_name   text,
+          location       text,
+          published_at   timestamptz,
+          updated_at     timestamptz not null default now(),
+          primary key (user_key, machine_id)
+        )
+      `;
+      await sql`create unique index if not exists machine_landing_slug_idx on machine_landing (slug) where slug is not null`;
+      await sql`create unique index if not exists machine_landing_number_idx on machine_landing (machine_number)`;
+      await sql`
+        create table if not exists machine_landing_assets (
+          asset_id    text primary key,
+          user_key    text not null,
+          machine_id  text not null,
+          media_type  text not null,
+          blob_url    text not null,
+          blob_path   text not null,
+          poster_url  text,
+          order_idx   int not null default 0,
+          created_at  timestamptz not null default now()
+        )
+      `;
+      await sql`create index if not exists machine_landing_assets_idx on machine_landing_assets (user_key, machine_id, order_idx)`;
     })();
   }
   return _schema;
