@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { saveProductMedia, removeProductMedia } from "@/app/dashboard/inventory/actions";
+import { toSquareWebp } from "@/lib/square-image";
 
 type Props = {
   mdbCode: number;
@@ -11,31 +12,6 @@ type Props = {
   initialDescription: string | null;
   initialImageUrl: string | null;
 };
-
-/** Downscale an image File to a max edge of 800px and return a JPEG Blob.
- * Keeps server-action payloads small and storage light. Falls back to the
- * original file if anything goes wrong. */
-async function downscale(file: File): Promise<Blob> {
-  try {
-    const bitmap = await createImageBitmap(file);
-    const max = 800;
-    const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
-    const w = Math.round(bitmap.width * scale);
-    const h = Math.round(bitmap.height * scale);
-    const canvas = document.createElement("canvas");
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return file;
-    ctx.drawImage(bitmap, 0, 0, w, h);
-    const blob = await new Promise<Blob | null>((res) =>
-      canvas.toBlob(res, "image/jpeg", 0.85),
-    );
-    return blob ?? file;
-  } catch {
-    return file;
-  }
-}
 
 export default function ProductMediaEditor({
   mdbCode,
@@ -67,7 +43,11 @@ export default function ProductMediaEditor({
       fd.set("mdbCode", String(mdbCode));
       fd.set("name", name);
       fd.set("description", description);
-      if (file) fd.set("image", await downscale(file), `slot-${mdbCode}.jpg`);
+      if (file) {
+        const blob = await toSquareWebp(file);
+        const ext = blob.type.split("/")[1] || "webp";
+        fd.set("image", blob, `slot-${mdbCode}.${ext}`);
+      }
       await saveProductMedia(fd);
       setOpen(false);
     });
