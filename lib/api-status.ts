@@ -1,5 +1,12 @@
 import "server-only";
-import { type NayaxConn, listMachines, probeEndpoint } from "@/lib/nayax";
+import {
+  type NayaxConn,
+  listMachines,
+  getMachine,
+  getMachineProducts,
+  productNayaxId,
+  probeEndpoint,
+} from "@/lib/nayax";
 
 export type Access = "ok" | "forbidden" | "unauthorized" | "missing" | "error" | "untested";
 
@@ -45,7 +52,7 @@ export async function probeReadEndpoints(conn: NayaxConn): Promise<EndpointRow[]
     { key: "status", label: "Machine health", path: `/operational/v1/machines/${mid}/status` },
   ];
 
-  return Promise.all(
+  const base = await Promise.all(
     reads.map(async (r): Promise<EndpointRow> => {
       if (r.key !== "machines" && !mid) {
         return { ...r, method: "GET", type: "read", access: "untested", code: null, note: "no machine to test" };
@@ -54,6 +61,59 @@ export async function probeReadEndpoints(conn: NayaxConn): Promise<EndpointRow[]
       return { ...r, method: "GET", type: "read", access: code ? classify(code) : "error", code: code || null };
     }),
   );
+
+  const catalog = await probeCatalog(conn, mid);
+  return [...base, ...catalog];
+}
+
+/** Probe the Nayax catalog reads that would power product image/name/description.
+ * Catalog detail is needed to enrich slots that have a NayaxProductID; the list
+ * confirms operator-wide catalog access. Both are commonly 403 until the token
+ * is granted catalog scope. Self-contained: derives a sample product id from the
+ * planogram and the operator id from the machine record; marks rows "untested"
+ * when those can't be resolved rather than reporting a misleading 404. */
+async function probeCatalog(conn: NayaxConn, mid: string): Promise<EndpointRow[]> {
+  const rows: EndpointRow[] = [];
+  const mk = (key: string, label: string, code: number): EndpointRow => ({
+    key, label, method: "GET", type: "read",
+    access: code ? classify(code) : "error", code: code || null,
+  });
+
+  // A sample catalog product id from a slot that links to one.
+  let sampleId = "";
+  // The operator ActorID that owns the catalog.
+  let operatorId = "";
+  if (mid) {
+    try {
+      const prods = await getMachineProducts(conn, mid);
+      for (const p of prods) {
+        const n = productNayaxId(p);
+        if (n) { sampleId = String(n); break; }
+      }
+    } catch { /* ignore */ }
+    try {
+      const m = await getMachine(conn, mid);
+      const v = m ? (m.OperatorActorID ?? m.ActorID ?? m.OperatorID) : null;
+      if (v != null && v !== "") operatorId = String(v);
+    } catch { /* ignore */ }
+  }
+
+  // Detail probe — two prefixes, to discover which the token resolves.
+  if (sampleId) {
+    rows.push(mk("catalog-detail", "Catalog product (detail)", await probeEndpoint(conn, `/v1/products/${sampleId}`)));
+    rows.push(mk("catalog-detail-op", "Catalog product (/operational)", await probeEndpoint(conn, `/operational/v1/products/${sampleId}`)));
+  } else {
+    rows.push({ key: "catalog-detail", label: "Catalog product (detail)", method: "GET", type: "read", access: "untested", code: null, note: "no slot has a catalog product" });
+  }
+
+  // Operator-wide catalog list.
+  if (operatorId) {
+    rows.push(mk("catalog-list", "Catalog products (list)", await probeEndpoint(conn, `/v1/operators/${operatorId}/products`)));
+  } else {
+    rows.push({ key: "catalog-list", label: "Catalog products (list)", method: "GET", type: "read", access: "untested", code: null, note: "operator id unknown" });
+  }
+
+  return rows;
 }
 
 /** Write capabilities are governed entirely by the operator's Nayax role. Vendai

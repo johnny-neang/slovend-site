@@ -6,6 +6,11 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  // Product-media uploads post the (client-downscaled) image through a server
+  // action; lift the default 1MB body cap as a backstop.
+  experimental: {
+    serverActions: { bodySizeLimit: "4mb" },
+  },
   // Next ignores app/.well-known dot-folders, so serve the MCP OAuth
   // protected-resource metadata from a normal route at the well-known path.
   async rewrites() {

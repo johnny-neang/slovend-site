@@ -141,6 +141,20 @@ export function ensureSchema(): Promise<void> {
         )
       `;
       await sql`create index if not exists machine_health_time_idx on machine_health (user_key, machine_id, captured_at desc)`;
+      await sql`
+        create table if not exists machine_product_media (
+          user_key    text not null,
+          machine_id  text not null,
+          mdb_code    integer not null,
+          name        text,
+          description text,
+          image_url   text,
+          image_path  text,
+          source      text not null default 'manual',
+          updated_at  timestamptz not null default now(),
+          primary key (user_key, machine_id, mdb_code)
+        )
+      `;
     })();
   }
   return _schema;

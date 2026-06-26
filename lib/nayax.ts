@@ -366,6 +366,70 @@ export function productLowStock(p: Product): boolean {
   return false;
 }
 
+/* catalog (the Nayax product SKUs that slots link to via NayaxProductID) */
+
+// Catalog detail path. machineProducts lives under /operational/v1/..., but the
+// per-slot ProductRef is "v1/products/{id}" with no /operational prefix. This
+// prefix is UNVERIFIED — confirm/flip it once a 200 is observed via the
+// API-access "Test access" probe (lib/api-status.ts).
+const CATALOG_PRODUCT_PATH = (id: number | string) => `/v1/products/${id}`;
+
+export type CatalogProduct = Record<string, unknown>;
+
+/** The catalog product id assigned to a slot, or null when 0/absent. */
+export function productNayaxId(p: Product): number | null {
+  const n = pickNum(p, ["NayaxProductID", "NayaxProductId", "ProductID", "ProductId"]);
+  return n && n > 0 ? n : null;
+}
+
+/** Fetch one catalog product by NayaxProductID. Returns null on any failure
+ * (403/404/network) so callers degrade to slot-only rendering. Never throws. */
+export async function getCatalogProduct(
+  conn: NayaxConn,
+  nayaxProductId: number | string,
+): Promise<CatalogProduct | null> {
+  if (!nayaxProductId || Number(nayaxProductId) <= 0) return null;
+  try {
+    const data = await lynx<unknown>(conn, CATALOG_PRODUCT_PATH(nayaxProductId));
+    if (Array.isArray(data)) return (data[0] as CatalogProduct) ?? null;
+    return data && typeof data === "object" ? (data as CatalogProduct) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Fetch many catalog products, deduping by id and fetching in parallel. The
+ * result map only contains ids that resolved to a non-null object. */
+export async function getCatalogProducts(
+  conn: NayaxConn,
+  ids: Array<number | string>,
+): Promise<Map<number, CatalogProduct>> {
+  const unique = [...new Set(ids.map(Number).filter((n) => Number.isFinite(n) && n > 0))];
+  const out = new Map<number, CatalogProduct>();
+  await Promise.all(
+    unique.map(async (id) => {
+      const c = await getCatalogProduct(conn, id);
+      if (c) out.set(id, c);
+    }),
+  );
+  return out;
+}
+
+// Candidate keys are best-guess until a real 200 catalog body is seen; reorder to
+// put the confirmed key first once observed.
+export function catalogName(c: CatalogProduct): string {
+  return pickStr(c, ["ProductName", "Name", "DisplayName", "Title", "ItemName", "Description"]);
+}
+export function catalogImage(c: CatalogProduct): string {
+  return pickStr(c, [
+    "ProductImageUrl", "ImageUrl", "ImageURL", "PictureUrl", "Image",
+    "Picture", "ThumbnailUrl", "MediaUrl", "ProductPictureUrl",
+  ]);
+}
+export function catalogDescription(c: CatalogProduct): string {
+  return pickStr(c, ["LongDescription", "Description", "ProductDescription", "Details", "Summary"]);
+}
+
 /* status */
 export function statusOnline(s: MachineStatus | null): boolean | null {
   if (!s) return null;
