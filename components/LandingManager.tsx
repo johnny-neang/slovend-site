@@ -255,39 +255,39 @@ export default function LandingManager({
         )}
       </div>
 
-      {/* Share & QR + scans (combined), beneath the media upload */}
+      {/* QR scans + Share & QR (combined), beneath the media upload */}
       <div className="panel lp-sharescans">
-        <h2 className="panel-title">Share &amp; QR</h2>
-        <QrCard trackingUrl={trackingUrl} label={qrLabel} />
-        <p className="note" style={{ marginTop: 4 }}>
-          The QR opens a short tracked link that counts each scan, then forwards to your page.
-        </p>
+        <h2 className="panel-title">QR scans</h2>
+        <div className="lp-stats">
+          <div className="tile">
+            <div className="l">Total</div>
+            <div className="n">{scanStats.total.toLocaleString()}</div>
+          </div>
+          <div className="tile">
+            <div className="l">Last 7 days</div>
+            <div className="n">{scanStats.last7.toLocaleString()}</div>
+          </div>
+          <div className="tile">
+            <div className="l">Last 30 days</div>
+            <div className="n">{scanStats.last30.toLocaleString()}</div>
+          </div>
+        </div>
+        {scanStats.daily.some((d) => d.value > 0) ? (
+          <div style={{ marginTop: 14 }}>
+            <BarChart data={scanStats.daily} tone="light" height={120} />
+          </div>
+        ) : (
+          <p className="muted" style={{ fontSize: 13, marginTop: 12 }}>
+            No scans yet — share your QR to get started.
+          </p>
+        )}
 
         <div className="lp-subsection">
-          <h2 className="panel-title">QR scans</h2>
-          <div className="lp-stats">
-            <div className="tile">
-              <div className="l">Total</div>
-              <div className="n">{scanStats.total.toLocaleString()}</div>
-            </div>
-            <div className="tile">
-              <div className="l">Last 7 days</div>
-              <div className="n">{scanStats.last7.toLocaleString()}</div>
-            </div>
-            <div className="tile">
-              <div className="l">Last 30 days</div>
-              <div className="n">{scanStats.last30.toLocaleString()}</div>
-            </div>
-          </div>
-          {scanStats.daily.some((d) => d.value > 0) ? (
-            <div style={{ marginTop: 14 }}>
-              <BarChart data={scanStats.daily} tone="light" height={120} />
-            </div>
-          ) : (
-            <p className="muted" style={{ fontSize: 13, marginTop: 12 }}>
-              No scans yet — share your QR to get started.
-            </p>
-          )}
+          <h2 className="panel-title">Share &amp; QR</h2>
+          <QrCard trackingUrl={trackingUrl} label={qrLabel} />
+          <p className="note" style={{ marginTop: 4 }}>
+            The QR opens a short tracked link that counts each scan, then forwards to your page.
+          </p>
         </div>
       </div>
       </div>
