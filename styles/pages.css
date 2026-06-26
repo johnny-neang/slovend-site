@@ -649,8 +649,11 @@ tr.tx-total td { font-family: var(--label); font-weight: 800; border-top: 2px so
 
 .vend-carousel { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; -ms-overflow-style: none; scrollbar-width: none; margin: 28px -4px 0; padding: 0 4px; }
 .vend-carousel::-webkit-scrollbar { display: none; }
-.vend-card { flex: 0 0 auto; width: min(72vw, 300px); aspect-ratio: 9/16; scroll-snap-align: center; border-radius: 16px; overflow: hidden; background: var(--ink); }
+.vend-card { position: relative; flex: 0 0 auto; width: min(72vw, 300px); aspect-ratio: 9/16; scroll-snap-align: center; border-radius: 16px; overflow: hidden; background: var(--ink); }
 .vend-card img, .vend-card video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vend-sound { position: absolute; right: 8px; bottom: 8px; z-index: 2; display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 50%; background: rgba(0,0,0,.5); color: #fff; cursor: pointer; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+.vend-sound svg { width: 18px; height: 18px; display: block; }
+.vend-sound.is-on { background: var(--cherry); }
 .vend-dots { display: flex; justify-content: center; gap: 4px; margin-top: 12px; }
 .vend-dot { appearance: none; border: 0; background: none; padding: 6px; cursor: pointer; line-height: 0; }
 .vend-dot::before { content: ""; display: block; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--ink-faint); background: transparent; transition: background .2s, border-color .2s; }
