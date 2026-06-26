@@ -143,7 +143,7 @@ export default function VendCarousel({ assets }: { assets: Asset[] }) {
                   ) : (
                     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                       <path d="M3 9v6h4l5 5V4L7 9H3z" />
-                      <path d="M19 12l3-3-1.4-1.4L17.6 10.6 14.8 7.8 13.4 9.2 16.2 12l-2.8 2.8 1.4 1.4 2.8-2.8 3 3L22 18l-3-3z" />
+                      <path d="M22 9.41 20.59 8 18 10.59 15.41 8 14 9.41 16.59 12 14 14.59 15.41 16 18 13.41 20.59 16 22 14.59 19.41 12z" />
                     </svg>
                   )}
                 </button>
