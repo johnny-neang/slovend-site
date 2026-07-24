@@ -4,7 +4,7 @@ import { WRITE_CAPABILITIES } from "@/lib/api-status";
 import { updateApiCredentials, disconnectApi } from "../actions";
 import AccessTester from "@/components/AccessTester";
 
-export const metadata: Metadata = { title: "API · Vendai" };
+export const metadata: Metadata = { title: "API · Slovend Intelligence" };
 export const dynamic = "force-dynamic";
 
 export default async function ApiPage({
@@ -22,7 +22,7 @@ export default async function ApiPage({
       <div className="wrap">
         <div className="dash-head">
           <div>
-            <div className="kicker">Vendai · Integration</div>
+            <div className="kicker">Slovend Intelligence · Integration</div>
             <h1 className="serif-display">API access</h1>
           </div>
           <span className={`status ${conn ? "live" : "off"}`}>
@@ -32,7 +32,7 @@ export default async function ApiPage({
         </div>
 
         <p className="mcp-intro">
-          Vendai reaches your machines through the <strong>Nayax Lynx API</strong> using a token you
+          Slovend Intelligence reaches your machines through the <strong>Nayax Lynx API</strong> using a token you
           provide. <strong>Nayax is the gatekeeper</strong> — your token&apos;s permissions decide
           which endpoints work and whether you have read or write access. Manage your key below and
           see exactly what it can reach.
@@ -92,9 +92,9 @@ export default async function ApiPage({
         <div className="panel">
           <div className="panel-h">Write endpoints</div>
           <p className="mcp-sub" style={{ marginBottom: 14 }}>
-            Vendai is <strong>read-only</strong> — it never changes anything in your account. Write
+            Slovend Intelligence is <strong>read-only</strong> — it never changes anything in your account. Write
             access (prices, planograms, routes, products) is governed entirely by your Nayax user
-            role. These are listed so you know what exists and that Nayax — not Vendai — controls it.
+            role. These are listed so you know what exists and that Nayax — not Slovend Intelligence — controls it.
           </p>
           <div className="table-card" style={{ border: "none" }}>
             <table className="dtable">
@@ -103,7 +103,7 @@ export default async function ApiPage({
                   <th>Capability</th>
                   <th>Method</th>
                   <th>Type</th>
-                  <th>Vendai</th>
+                  <th>Slovend Intelligence</th>
                 </tr>
               </thead>
               <tbody>

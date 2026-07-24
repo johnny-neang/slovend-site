@@ -34,7 +34,7 @@ import { getMachineTimezone } from "@/lib/settings";
 import { rssiScaleOf, rssiQuality, isUnknownRssi, RSSI_UNIT } from "@/lib/rssi";
 
 /**
- * Canonical read-only Vendai operations, shared by the in-app Haiku chat
+ * Canonical read-only Slovend Intelligence operations, shared by the in-app Haiku chat
  * (lib/assistant.ts) and the remote MCP server (app/api/mcp). `email` is the
  * operator's userKey; `conn` is their decrypted Nayax connection.
  */
@@ -187,7 +187,7 @@ export async function toolTax(ctx: ToolCtx, args: ToolArgs) {
     inclusive: settings.inclusive,
     ...r,
     disclaimer:
-      "Estimate based on the operator's configured rate and taxable %. Not tax advice; covers only sales recorded by Vendai in the window.",
+      "Estimate based on the operator's configured rate and taxable %. Not tax advice; covers only sales recorded by Slovend Intelligence in the window.",
   };
 }
 
@@ -217,7 +217,7 @@ export async function toolAlertHistory(ctx: ToolCtx, args: ToolArgs) {
     bySeverity: summary.bySeverity,
     byCategory: summary.byCategory,
     events: summary.rows.slice(0, 100),
-    note: "Persisted event history recorded by Vendai (deduped). Differs from get_alerts, which returns only Lynx's live recent window.",
+    note: "Persisted event history recorded by Slovend Intelligence (deduped). Differs from get_alerts, which returns only Lynx's live recent window.",
   };
 }
 
@@ -275,7 +275,7 @@ export const READ_TOOLS: {
   {
     name: "get_alert_history",
     description:
-      "Compiled alert/event history recorded by Vendai over a window, with totals by severity and category. Supports text search and severity/category filters — use this to investigate or diagnose past events.",
+      "Compiled alert/event history recorded by Slovend Intelligence over a window, with totals by severity and category. Supports text search and severity/category filters — use this to investigate or diagnose past events.",
     shape: {
       ...rangeArgs,
       q: z.string().optional().describe("Text search over event description and category."),

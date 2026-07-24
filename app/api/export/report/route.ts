@@ -27,7 +27,7 @@ export async function GET(req: Request) {
     generatedAt: new Date().toISOString().slice(0, 10),
     summary,
   });
-  const name = `vendai-${fileSlug(machineLabel(ctx.machine))}-${win.slug}.pdf`;
+  const name = `slovend-${fileSlug(machineLabel(ctx.machine))}-${win.slug}.pdf`;
 
   return new Response(Buffer.from(pdf), {
     headers: {

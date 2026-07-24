@@ -13,7 +13,7 @@ import {
 } from "@/lib/nayax";
 import { getMachineTimezone } from "@/lib/settings";
 
-export const metadata: Metadata = { title: "Sales · Vendai" };
+export const metadata: Metadata = { title: "Sales · Slovend Intelligence" };
 export const dynamic = "force-dynamic";
 
 export default async function SalesPage() {

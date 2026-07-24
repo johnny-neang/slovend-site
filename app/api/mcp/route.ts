@@ -34,7 +34,7 @@ const base = createMcpHandler(
         const conn = await getConnection(email);
         if (!conn) {
           return errText(
-            "No Nayax connection found for your account — connect it in the Vendai dashboard first.",
+            "No Nayax connection found for your account — connect it in the Slovend Intelligence dashboard first.",
           );
         }
         try {

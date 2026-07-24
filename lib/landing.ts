@@ -50,7 +50,7 @@ export class LandingError extends Error {
 const RESERVED = new Set([
   "dashboard", "settings", "api", "login", "vending", "admin", "assets",
   "_next", "favicon", "app", "public", "static", "robots", "sitemap", "about",
-  "locations", "vendai",
+  "locations", "vendai", "slovend-intelligence",
 ]);
 
 /** Lowercase, strip to [a-z0-9-], collapse and trim dashes. */

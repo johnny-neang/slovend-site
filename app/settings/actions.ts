@@ -46,7 +46,7 @@ export async function testAccess(_prev: AccessResult, _formData: FormData): Prom
   }
 }
 
-/** Permanently delete all of the signed-in user's Vendai data, then sign out. */
+/** Permanently delete all of the signed-in user's Slovend Intelligence data, then sign out. */
 export async function deleteAccount(formData: FormData) {
   const key = await requireUserKey();
   if (String(formData.get("confirm") ?? "").trim().toUpperCase() !== "DELETE") {

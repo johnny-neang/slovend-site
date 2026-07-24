@@ -30,8 +30,8 @@ export default async function LoginPage({
           <div className="corner bl" />
           <div className="corner br" />
 
-          <div className="kicker center">Vendai</div>
-          <h1>Sign in to Vendai</h1>
+          <div className="kicker center">Slovend Intelligence</div>
+          <h1>Sign in to Slovend Intelligence</h1>
           <p>
             Operator access is in private beta. Sign in with your Google account
             to reach your fleet dashboard.

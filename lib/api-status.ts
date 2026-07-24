@@ -31,7 +31,7 @@ function classify(code: number): Access {
   return "error";
 }
 
-/** Live-probe the read endpoints Vendai uses against the operator's token. */
+/** Live-probe the read endpoints Slovend Intelligence uses against the operator's token. */
 export async function probeReadEndpoints(conn: NayaxConn): Promise<EndpointRow[]> {
   let mid = conn.machineId;
   if (!mid) {
@@ -116,7 +116,7 @@ async function probeCatalog(conn: NayaxConn, mid: string): Promise<EndpointRow[]
   return rows;
 }
 
-/** Write capabilities are governed entirely by the operator's Nayax role. Vendai
+/** Write capabilities are governed entirely by the operator's Nayax role. Slovend Intelligence
  * is read-only and never calls these — listed so users know they exist + are gated. */
 export const WRITE_CAPABILITIES: EndpointRow[] = [
   { key: "planogram", label: "Update planogram & prices", method: "PUT/POST", type: "write", access: "untested", code: null },

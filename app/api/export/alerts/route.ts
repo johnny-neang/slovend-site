@@ -31,7 +31,7 @@ export async function GET(req: Request) {
   const tz = await getMachineTimezone(ctx.email, ctx.machineId);
   const rows = await alertsForExport(ctx.email, ctx.machineId, win, tz, filterFrom(sp));
   const csv = `﻿${alertsToCsv(rows, tz)}`; // UTF-8 BOM so Excel reads it cleanly
-  const name = `vendai-alerts-${fileSlug(machineLabel(ctx.machine))}-${win.slug}.csv`;
+  const name = `slovend-alerts-${fileSlug(machineLabel(ctx.machine))}-${win.slug}.csv`;
 
   return new Response(csv, {
     headers: {

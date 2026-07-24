@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { deleteAccount } from "./actions";
 
-export const metadata: Metadata = { title: "Account · Vendai" };
+export const metadata: Metadata = { title: "Account · Slovend Intelligence" };
 export const dynamic = "force-dynamic";
 
 export default async function AccountPage({
@@ -20,7 +20,7 @@ export default async function AccountPage({
       <div className="wrap">
         <div className="dash-head">
           <div>
-            <div className="kicker">Vendai · Settings</div>
+            <div className="kicker">Slovend Intelligence · Settings</div>
             <h1 className="serif-display">Account</h1>
           </div>
         </div>
@@ -49,7 +49,7 @@ export default async function AccountPage({
         <div className="panel danger-zone">
           <div className="panel-h danger-h">Danger zone</div>
           <p className="mcp-sub" style={{ marginBottom: 14 }}>
-            Permanently delete your Vendai data — your Nayax connection, all collected sales history,
+            Permanently delete your Slovend Intelligence data — your Nayax connection, all collected sales history,
             tax &amp; timezone settings, chat threads, and MCP activity. <strong>This cannot be
             undone.</strong> You can sign back in later to start fresh.
           </p>

@@ -11,7 +11,7 @@ import { getMachineTimezone } from "@/lib/settings";
 import BarChart, { type BarDatum } from "@/components/BarChart";
 import DateRangeForm from "@/components/DateRangeForm";
 
-export const metadata: Metadata = { title: "Reports · Vendai" };
+export const metadata: Metadata = { title: "Reports · Slovend Intelligence" };
 export const dynamic = "force-dynamic";
 
 const RANGES = [7, 30, 90];
@@ -114,7 +114,7 @@ export default async function ReportsPage({
             <div className="seal">✦</div>
             <h2>Collecting data…</h2>
             <p>
-              Vendai records this machine&apos;s recent sales every time you open
+              Slovend Intelligence records this machine&apos;s recent sales every time you open
               the dashboard, plus once daily. As transactions accumulate, revenue
               trends, top sellers and peak hours will appear here. Check back soon.
             </p>

@@ -43,7 +43,7 @@ export default function InterestForm() {
         <div className="seal">✦</div>
         <h3>You&apos;re on the list.</h3>
         <p>
-          Thanks — we&apos;ve noted your interest in Vendai. We&apos;ll be in
+          Thanks — we&apos;ve noted your interest in Slovend Intelligence. We&apos;ll be in
           touch as we open the beta. Good fortune until then.
         </p>
       </div>
@@ -56,7 +56,7 @@ export default function InterestForm() {
         <div className="kicker center" style={{ justifyContent: "center" }}>
           Early access
         </div>
-        <h2>Be first in line for Vendai.</h2>
+        <h2>Be first in line for Slovend Intelligence.</h2>
         <p className="lead" style={{ margin: "14px auto 0", maxWidth: 440 }}>
           Tell us a little about your fleet and we&apos;ll reach out as we open
           up the beta.
@@ -121,7 +121,7 @@ export default function InterestForm() {
           </div>
           <div className="field full">
             <label htmlFor="message">
-              What would you want Vendai to do?{" "}
+              What would you want Slovend Intelligence to do?{" "}
               <span style={{ opacity: 0.6 }}>(optional)</span>
             </label>
             <textarea
@@ -135,7 +135,7 @@ export default function InterestForm() {
               {submitting ? "Sending…" : "Request early access"}
             </button>
             <span className="fine">
-              No spam. We&apos;ll only email you about the Vendai beta.
+              No spam. We&apos;ll only email you about the Slovend Intelligence beta.
             </span>
             {sendError ? (
               <span className="auth-error" role="alert">
