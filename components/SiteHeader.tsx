@@ -30,7 +30,7 @@ export default function SiteHeader() {
             Locations
           </Link>
           <Link href="/slovend-intelligence" aria-current={cur("/slovend-intelligence")}>
-            Slovend Intelligence
+            Intelligence
           </Link>
           <Link href="/about" aria-current={cur("/about")}>
             About
