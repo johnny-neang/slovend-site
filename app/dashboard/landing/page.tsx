@@ -5,7 +5,7 @@ import DashError from "@/components/DashError";
 import LandingManager from "@/components/LandingManager";
 import { getLandingConfig, listLandingAssets, getLandingScanStats } from "@/lib/landing";
 
-export const metadata: Metadata = { title: "Landing Page · Vendai" };
+export const metadata: Metadata = { title: "Landing Page · Slovend Intelligence" };
 export const dynamic = "force-dynamic";
 
 type SP = { error?: string };

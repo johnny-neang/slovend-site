@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import InterestForm from "@/components/InterestForm";
 
 export const metadata: Metadata = {
-  title: "Vendai — Talk to your fleet · A Slovend project",
+  title: "Slovend Intelligence — Talk to your fleet",
   description:
-    "Vendai is an AI layer for the vending machines you already own. Ask questions, make changes, and build your own dashboards — powered by frontier LLMs, with no rip-and-replace.",
+    "Slovend Intelligence is an AI layer for the vending machines you already own. Ask questions, make changes, and build your own dashboards — powered by frontier LLMs, with no rip-and-replace.",
 };
 
-const mcpCode = `<span class="c"># Vendai wraps the Nayax Lynx API as MCP tools</span>
+const mcpCode = `<span class="c"># Slovend Intelligence wraps the Nayax Lynx API as MCP tools</span>
 <span class="k">GET</span>  /operational/api/v1/machines
 <span class="k">GET</span>  /operational/api/v1/machines/{id}/lastSales
 <span class="k">GET</span>  /operational/api/v1/machines/{id}/lastAlerts
@@ -18,7 +18,7 @@ const mcpCode = `<span class="c"># Vendai wraps the Nayax Lynx API as MCP tools<
 <span class="c"># host lynx.nayax.com · auth Bearer &lt;token&gt;</span>
 <span class="s">→ "How much did machine 5001 make last week?"</span>`;
 
-export default function Vendai() {
+export default function SlovendIntelligence() {
   return (
     <>
       {/* HERO */}
@@ -31,7 +31,9 @@ export default function Vendai() {
               Preview · Now in private testing
             </span>
             <div className="wordmark">
-              Vend<span className="ai">ai</span>
+              Slovend
+              <br />
+              <span className="ai">Intelligence</span>
             </div>
             <h1 className="sub">
               Talk to your whole fleet
@@ -39,9 +41,9 @@ export default function Vendai() {
               in plain language.
             </h1>
             <p className="lead">
-              Vendai is an AI layer for the vending machines you already own. Ask
-              questions, make changes, and build your own dashboards — powered by
-              frontier LLMs, with no rip-and-replace.
+              Slovend Intelligence is an AI layer for the vending machines you
+              already own. Ask questions, make changes, and build your own
+              dashboards — powered by frontier LLMs, with no rip-and-replace.
             </p>
             <div className="v-cta">
               <a href="#interest" className="btn btn-gold">
@@ -52,7 +54,7 @@ export default function Vendai() {
               </a>
             </div>
             <div className="v-note" style={{ marginTop: 22 }}>
-              A Slovend project · Building on Nayax first
+              By Slovend · Building on Nayax first
             </div>
           </div>
 
@@ -64,7 +66,7 @@ export default function Vendai() {
                 <i />
                 <i />
               </span>
-              <span className="name">Vendai · Fleet Assistant</span>
+              <span className="name">Slovend Intelligence</span>
               <span className="on">online</span>
             </div>
             <div className="chat-body">
@@ -106,7 +108,7 @@ export default function Vendai() {
       <section className="section" id="how">
         <div className="wrap">
           <div className="section-head">
-            <div className="kicker">What Vendai does</div>
+            <div className="kicker">What Slovend Intelligence does</div>
             <h2>An interface, not a replacement.</h2>
           </div>
           <div className="vals" style={{ marginTop: 48 }}>
@@ -115,26 +117,26 @@ export default function Vendai() {
               <h3>Natural language</h3>
               <p>
                 Ask about sales, stock, faults or routes the way you&apos;d ask a
-                colleague. Vendai reads your fleet and answers — and can make the
-                change for you.
+                colleague. Slovend Intelligence reads your fleet and answers — and
+                can make the change for you.
               </p>
             </div>
             <div className="val">
               <div className="ic">▦</div>
               <h3>Build your own dashboard</h3>
               <p>
-                Describe the view you want and Vendai assembles it: the tiles,
-                charts and alerts that matter to your operation, no spreadsheets
-                required.
+                Describe the view you want and Slovend Intelligence assembles it:
+                the tiles, charts and alerts that matter to your operation, no
+                spreadsheets required.
               </p>
             </div>
             <div className="val">
               <div className="ic">⟲</div>
               <h3>Works with what you have</h3>
               <p>
-                Vendai sits on top of your existing machines and telemetry. We
-                don&apos;t replace your hardware or your provider — we make them
-                speak plainly.
+                Slovend Intelligence sits on top of your existing machines and
+                telemetry. We don&apos;t replace your hardware or your provider —
+                we make them speak plainly.
               </p>
             </div>
           </div>
@@ -197,9 +199,9 @@ export default function Vendai() {
               <span className="ital">builds itself.</span>
             </h2>
             <p className="lead" style={{ marginTop: 20 }}>
-              Tell Vendai what you want to keep an eye on — revenue by site,
-              low-stock bays, top sellers, faults — and it lays out a live
-              dashboard for you. Change your mind? Just ask again.
+              Tell Slovend Intelligence what you want to keep an eye on — revenue
+              by site, low-stock bays, top sellers, faults — and it lays out a
+              live dashboard for you. Change your mind? Just ask again.
             </p>
             <p
               className="mono"
@@ -238,11 +240,12 @@ export default function Vendai() {
               Model Context Protocol.
             </h2>
             <p className="lead" style={{ marginTop: 18 }}>
-              Vendai wraps the <b className="gold">Nayax Lynx API</b> in a
-              standard set of MCP tools, so frontier LLMs can read live machine,
-              sales and inventory data — and take safe, scoped actions like
-              adjusting a product&apos;s restock threshold. We&apos;re starting
-              with Nayax, with more providers to follow.
+              Slovend Intelligence wraps the{" "}
+              <b className="gold">Nayax Lynx API</b> in a standard set of MCP
+              tools, so frontier LLMs can read live machine, sales and inventory
+              data — and take safe, scoped actions like adjusting a
+              product&apos;s restock threshold. We&apos;re starting with Nayax,
+              with more providers to follow.
             </p>
             <div className="v-note" style={{ marginTop: 20 }}>
               Private beta · rolling out shortly

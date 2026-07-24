@@ -11,6 +11,12 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: { bodySizeLimit: "4mb" },
   },
+  // The Vendai product page was renamed to Slovend Intelligence; keep old links working.
+  async redirects() {
+    return [
+      { source: "/vendai", destination: "/slovend-intelligence", permanent: true },
+    ];
+  },
   // Next ignores app/.well-known dot-folders, so serve the MCP OAuth
   // protected-resource metadata from a normal route at the well-known path.
   async rewrites() {

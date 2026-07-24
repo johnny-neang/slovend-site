@@ -51,7 +51,7 @@ async function newDoc(title: string): Promise<{
 }> {
   const doc = await PDFDocument.create();
   doc.setTitle(title);
-  doc.setAuthor("Vendai · Slovend");
+  doc.setAuthor("Slovend Intelligence");
   const page = doc.addPage([W, H]);
   const fonts: Fonts = {
     helv: await doc.embedFont(StandardFonts.Helvetica),
@@ -96,7 +96,7 @@ function drawFooter(page: PDFPage, f: Fonts, note?: string) {
     }
   }
   page.drawLine({ start: { x: M, y: 44 }, end: { x: W - M, y: 44 }, thickness: 1, color: LINE });
-  k.text("Slovend LLC · Vendai", M, 30, 8, f.helv, GRAY);
+  k.text("Slovend LLC · Slovend Intelligence", M, 30, 8, f.helv, GRAY);
   k.right("A FutureNow company", W - M, 30, 8, f.helv, GRAY);
 }
 
@@ -107,9 +107,9 @@ export async function buildReportPdf(opts: {
   summary: ReportSummary;
 }): Promise<Uint8Array> {
   const { machineName, windowLabel, generatedAt, summary } = opts;
-  const { doc, page, fonts, logo } = await newDoc(`Vendai report — ${machineName}`);
+  const { doc, page, fonts, logo } = await newDoc(`Slovend Intelligence report — ${machineName}`);
   const k = kit(page, fonts);
-  drawHeader(page, fonts, logo, "VENDAI · FLEET REPORT");
+  drawHeader(page, fonts, logo, "SLOVEND INTELLIGENCE · FLEET REPORT");
 
   let y = H - 120;
   k.text(k.clip(machineName, 46), M, y, 22, fonts.serif, INK);
@@ -172,9 +172,9 @@ export async function buildAlertsPdf(opts: {
   summary: AlertsSummary;
 }): Promise<Uint8Array> {
   const { machineName, windowLabel, generatedAt, timezone, summary } = opts;
-  const { doc, page, fonts, logo } = await newDoc(`Vendai alerts — ${machineName}`);
+  const { doc, page, fonts, logo } = await newDoc(`Slovend Intelligence alerts — ${machineName}`);
   const k = kit(page, fonts);
-  drawHeader(page, fonts, logo, "VENDAI · ALERTS & EVENTS");
+  drawHeader(page, fonts, logo, "SLOVEND INTELLIGENCE · ALERTS & EVENTS");
 
   let y = H - 120;
   k.text(k.clip(machineName, 46), M, y, 22, fonts.serif, INK);
@@ -224,7 +224,7 @@ export async function buildAlertsPdf(opts: {
   drawFooter(
     page,
     fonts,
-    `${summary.total} event${summary.total === 1 ? "" : "s"} recorded by Vendai in this window${
+    `${summary.total} event${summary.total === 1 ? "" : "s"} recorded by Slovend Intelligence in this window${
       summary.rows.length > rows.length ? ` (showing the ${rows.length} most recent)` : ""
     }. Severity is heuristic, derived from each event's description.`,
   );
@@ -250,9 +250,9 @@ export type TaxPdfData = {
 };
 
 export async function buildTaxPdf(d: TaxPdfData): Promise<Uint8Array> {
-  const { doc, page, fonts, logo } = await newDoc(`Vendai sales tax — ${d.machineName}`);
+  const { doc, page, fonts, logo } = await newDoc(`Slovend Intelligence sales tax — ${d.machineName}`);
   const k = kit(page, fonts);
-  drawHeader(page, fonts, logo, "VENDAI · SALES TAX SUMMARY");
+  drawHeader(page, fonts, logo, "SLOVEND INTELLIGENCE · SALES TAX SUMMARY");
 
   let y = H - 120;
   k.text(k.clip(d.machineName, 46), M, y, 22, fonts.serif, INK);
@@ -306,8 +306,8 @@ export async function buildTaxPdf(d: TaxPdfData): Promise<Uint8Array> {
 
   const covered =
     d.coveredFrom && d.coveredTo
-      ? `Based on ${d.txns} transactions recorded by Vendai from ${d.coveredFrom} to ${d.coveredTo}.`
-      : "No transactions recorded by Vendai in this range.";
+      ? `Based on ${d.txns} transactions recorded by Slovend Intelligence from ${d.coveredFrom} to ${d.coveredTo}.`
+      : "No transactions recorded by Slovend Intelligence in this range.";
   drawFooter(
     page,
     fonts,

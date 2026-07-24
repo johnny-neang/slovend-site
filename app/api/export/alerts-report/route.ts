@@ -38,7 +38,7 @@ export async function GET(req: Request) {
     timezone: tz,
     summary,
   });
-  const name = `vendai-alerts-${fileSlug(machineLabel(ctx.machine))}-${win.slug}.pdf`;
+  const name = `slovend-alerts-${fileSlug(machineLabel(ctx.machine))}-${win.slug}.pdf`;
 
   return new Response(Buffer.from(pdf), {
     headers: {

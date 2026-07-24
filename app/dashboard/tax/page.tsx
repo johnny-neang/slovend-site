@@ -9,7 +9,7 @@ import { getTaxSettings, saveTaxSettings, taxReport } from "@/lib/tax";
 import { getMachineTimezone } from "@/lib/settings";
 import DateRangeForm from "@/components/DateRangeForm";
 
-export const metadata: Metadata = { title: "Sales tax · Vendai" };
+export const metadata: Metadata = { title: "Sales tax · Slovend Intelligence" };
 export const dynamic = "force-dynamic";
 
 function money(n: number): string {
@@ -141,7 +141,7 @@ export default async function TaxPage({
             <div className="seal">✦</div>
             <h2>No sales in this range</h2>
             <p>
-              Pick a different date range, or let history accrue — Vendai records this machine&apos;s
+              Pick a different date range, or let history accrue — Slovend Intelligence records this machine&apos;s
               sales each time you open the dashboard, plus once daily.
             </p>
           </div>

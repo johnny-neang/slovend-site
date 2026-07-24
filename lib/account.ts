@@ -3,7 +3,7 @@ import { dbConfigured, getSql, ensureSchema } from "@/lib/db";
 import { deleteConnection } from "@/lib/connections";
 
 /**
- * Permanently delete every piece of a user's Vendai data. Strictly scoped by
+ * Permanently delete every piece of a user's Slovend Intelligence data. Strictly scoped by
  * user_key. chat_messages is removed via the chat_threads ON DELETE CASCADE;
  * the Nayax connection (DB row + cookie fallback) is cleared via deleteConnection.
  */

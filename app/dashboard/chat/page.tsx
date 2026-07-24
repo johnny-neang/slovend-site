@@ -5,7 +5,7 @@ import DashError from "@/components/DashError";
 import ChatClient from "@/components/ChatClient";
 import { listThreads } from "@/lib/threads";
 
-export const metadata: Metadata = { title: "Chat · Vendai" };
+export const metadata: Metadata = { title: "Chat · Slovend Intelligence" };
 export const dynamic = "force-dynamic";
 
 export default async function ChatPage() {

@@ -58,14 +58,14 @@ export default async function Overview({
         <div className="wrap">
           <div className="dash-head">
             <div>
-              <div className="kicker">Vendai dashboard</div>
+              <div className="kicker">Slovend Intelligence dashboard</div>
               <h1 className="serif-display">Welcome.</h1>
             </div>
           </div>
           <div className="connect-card">
             <h2>Connect your Nayax account</h2>
             <p>
-              Vendai reads your fleet using <strong>your own</strong> Nayax Lynx
+              Slovend Intelligence reads your fleet using <strong>your own</strong> Nayax Lynx
               API token. It&apos;s encrypted and saved to your profile — never
               shared with other users.
             </p>
@@ -238,7 +238,7 @@ export default async function Overview({
       <div className="wrap">
         <div className="dash-head">
           <div>
-            <div className="kicker">Vendai dashboard</div>
+            <div className="kicker">Slovend Intelligence dashboard</div>
             <h1 className="serif-display">{machineLabel(ctx.machine)}</h1>
           </div>
           <span className={`status ${online === false ? "off" : "live"}`}>

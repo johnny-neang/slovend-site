@@ -142,7 +142,7 @@ export default function ChatClient({
                 <i />
                 <i />
               </span>
-              <span className="name">Vendai · {machine.name}</span>
+              <span className="name">Slovend Intelligence · {machine.name}</span>
               <span className="on">Haiku</span>
             </div>
             <div className="chat-body" ref={bodyRef}>

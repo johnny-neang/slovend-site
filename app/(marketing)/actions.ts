@@ -1,6 +1,6 @@
 "use server";
 
-import { sendMail } from "@/lib/mail";
+import { addContactToList, sendMail } from "@/lib/mail";
 
 const NOTIFY_TO = "johnny@futurenow.co";
 
@@ -25,7 +25,7 @@ export async function submitInterest(
   const message = get("message");
 
   const lines = [
-    "New Vendai early-access request:",
+    "New Slovend Intelligence early-access request:",
     "",
     `Name:     ${name || "—"}`,
     `Email:    ${email}`,
@@ -37,16 +37,25 @@ export async function submitInterest(
     message || "—",
   ];
 
-  const result = await sendMail({
-    to: NOTIFY_TO,
-    toName: "Johnny",
-    subject: `Vendai early access — ${name || email}`,
-    text: lines.join("\n"),
-    replyTo: email,
-  });
+  // Store the signup on the Mailjet mailing list and notify Johnny. Independent,
+  // so run them together; the submission succeeds as long as the lead is captured
+  // by at least one (stored on the list, or delivered in the notification email).
+  const [stored, notified] = await Promise.all([
+    addContactToList({ email, name }),
+    sendMail({
+      to: NOTIFY_TO,
+      toName: "Johnny",
+      subject: `Slovend Intelligence early access — ${name || email}`,
+      text: lines.join("\n"),
+      replyTo: email,
+    }),
+  ]);
 
-  if (!result.ok) {
-    console.error("Interest email failed:", result.error);
+  if (!stored.ok) console.error("Interest contact store failed:", stored.error);
+  if (!notified.ok) console.error("Interest email failed:", notified.error);
+
+  const capturedOnList = stored.ok && stored.stored;
+  if (!capturedOnList && !notified.ok) {
     return { ok: false, error: "Something went wrong. Please try again." };
   }
 

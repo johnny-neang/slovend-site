@@ -44,7 +44,7 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: "get_alert_history",
     description:
-      "Compiled alert/event history recorded by Vendai for the selected machine over a date window, with totals by severity and category and text search. Use this to investigate or diagnose past events (e.g. 'reader faults in the last 30 days').",
+      "Compiled alert/event history recorded by Slovend Intelligence for the selected machine over a date window, with totals by severity and category and text search. Use this to investigate or diagnose past events (e.g. 'reader faults in the last 30 days').",
     input_schema: {
       type: "object",
       properties: {
@@ -108,7 +108,7 @@ export async function runAssistant(
   const ctx: ToolCtx = { email, conn };
   const today = new Date().toISOString().slice(0, 10);
 
-  const system = `You are Vendai, an assistant for vending-machine operators. The operator's Nayax Lynx account is already connected and a machine is already selected: "${machine.name}" (id ${machine.id}). You have read-only tools that act on THAT machine — call them; never ask the user which machine, and never say you can't find the machine.
+  const system = `You are Slovend Intelligence, an assistant for vending-machine operators. The operator's Nayax Lynx account is already connected and a machine is already selected: "${machine.name}" (id ${machine.id}). You have read-only tools that act on THAT machine — call them; never ask the user which machine, and never say you can't find the machine.
 
 Tools: get_status, get_sales, get_alerts, get_alert_history, get_inventory (all operate on the selected machine), and list_machines (whole fleet).
 

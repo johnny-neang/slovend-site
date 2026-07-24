@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Slovend — About",
   description:
-    "Slovend is a subsidiary of FutureNow, Inc. — a mentorship collective in Sheridan, WY built to unlock potential in people and the things they build. One well-kept machine, plus Vendai, our AI layer for fleets.",
+    "Slovend is a subsidiary of FutureNow, Inc. — a mentorship collective in Sheridan, WY built to unlock potential in people and the things they build. One well-kept machine, plus Slovend Intelligence, our AI layer for fleets.",
 };
 
 export default function About() {
@@ -54,10 +54,10 @@ export default function About() {
               machine — Nori, at Arden Fair in Sacramento — stocked with care and
               watched over by the lucky cat, and we&apos;re building{" "}
               <Link
-                href="/vendai"
+                href="/slovend-intelligence"
                 style={{ color: "var(--cherry)", textDecoration: "none" }}
               >
-                Vendai
+                Slovend Intelligence
               </Link>
               , an AI layer that lets operators talk to their whole fleet in
               plain language.

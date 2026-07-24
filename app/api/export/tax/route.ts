@@ -29,7 +29,7 @@ export async function GET(req: Request) {
   const tz = await getMachineTimezone(ctx.email, ctx.machineId);
   const rep = await taxReport(ctx.email, ctx.machineId, win, settings, tz);
   const machine = machineLabel(ctx.machine);
-  const base = `vendai-tax-${fileSlug(machine)}-${win.slug}`;
+  const base = `slovend-tax-${fileSlug(machine)}-${win.slug}`;
 
   if (format === "pdf") {
     const pdf = await buildTaxPdf({
@@ -66,7 +66,7 @@ export async function GET(req: Request) {
 
   const f2 = (n: number) => n.toFixed(2);
   const lines: string[] = [];
-  lines.push(`Vendai Sales Tax Summary — ${machine}`);
+  lines.push(`Slovend Intelligence Sales Tax Summary — ${machine}`);
   lines.push(`Window:,${csvCell(win.label)}`);
   lines.push(`Timezone:,${tz}`);
   lines.push(

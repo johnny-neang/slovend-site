@@ -29,8 +29,8 @@ export default function SiteHeader() {
           <Link href="/locations" aria-current={cur("/locations")}>
             Locations
           </Link>
-          <Link href="/vendai" aria-current={cur("/vendai")}>
-            Vendai
+          <Link href="/slovend-intelligence" aria-current={cur("/slovend-intelligence")}>
+            Slovend Intelligence
           </Link>
           <Link href="/about" aria-current={cur("/about")}>
             About

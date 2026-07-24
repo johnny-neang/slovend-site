@@ -20,7 +20,7 @@ export async function GET(req: Request) {
   const tz = await getMachineTimezone(ctx.email, ctx.machineId);
   const rows = await salesForExport(ctx.email, ctx.machineId, win, tz);
   const csv = `﻿${toCsv(rows, tz)}`; // UTF-8 BOM so Excel reads it cleanly
-  const name = `vendai-${fileSlug(machineLabel(ctx.machine))}-${win.slug}.csv`;
+  const name = `slovend-${fileSlug(machineLabel(ctx.machine))}-${win.slug}.csv`;
 
   return new Response(csv, {
     headers: {

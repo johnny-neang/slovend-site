@@ -7,7 +7,7 @@ import Providers from "@/components/Providers";
 export const metadata: Metadata = {
   title: "Slovend — Good fortune, freshly vended",
   description:
-    "Slovend — good fortune, freshly vended. One beautifully kept vending machine, plus Vendai, our AI layer for fleets.",
+    "Slovend — good fortune, freshly vended. One beautifully kept vending machine, plus Slovend Intelligence, our AI layer for fleets.",
 };
 
 export default function RootLayout({

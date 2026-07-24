@@ -1,14 +1,14 @@
 # Slovend
 
-The marketing site and operator dashboard for **Slovend** — a vending business — plus **Vendai**, an assistant that lets operators query their machines in plain language.
+The marketing site and operator dashboard for **Slovend** — a vending business — plus **Slovend Intelligence**, an assistant that lets operators query their machines in plain language.
 
 > **Source-available, not open source.** This repository is published for transparency and reference only. See [LICENSE](./LICENSE) — all rights reserved.
 
 ## What's here
 
-- **Marketing site** (`app/(marketing)`) — home, about, locations, and the Vendai product page.
+- **Marketing site** (`app/(marketing)`) — home, about, locations, and the Slovend Intelligence product page.
 - **Operator dashboard** (`app/dashboard`) — sales, inventory, alerts, reports, and tax views over an operator's vending machines.
-- **Vendai assistant** (`app/dashboard/chat`, `lib/assistant.ts`) — a chat interface backed by the Anthropic API and a set of read-only tools.
+- **Slovend Intelligence assistant** (`app/dashboard/chat`, `lib/assistant.ts`) — a chat interface backed by the Anthropic API and a set of read-only tools.
 - **MCP server** (`app/api/mcp`, `lib/mcp-*`) — exposes the same machine data to MCP clients over an OAuth-protected endpoint.
 - **Settings** (`app/settings`) — API connection, MCP access, and account management.
 
@@ -21,7 +21,7 @@ Slovend reads machine data through the **Nayax Lynx API**. There is intentionall
 - [Next.js 16](https://nextjs.org/) (App Router, React 19) on Vercel
 - [Auth.js / NextAuth v5](https://authjs.dev/) with Google OAuth (private-beta allowlist)
 - [Neon](https://neon.tech/) serverless Postgres
-- [Anthropic SDK](https://github.com/anthropics/anthropic-sdk-typescript) for the Vendai assistant
+- [Anthropic SDK](https://github.com/anthropics/anthropic-sdk-typescript) for the Slovend Intelligence assistant
 - [Model Context Protocol](https://modelcontextprotocol.io/) via `mcp-handler`
 - `pdf-lib` for report/tax/sales exports, `zod` for validation, `jose` for token handling
 

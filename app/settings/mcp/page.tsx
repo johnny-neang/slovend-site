@@ -5,7 +5,7 @@ import { getMcpStatus } from "@/lib/mcp-activity";
 import { READ_TOOLS } from "@/lib/tools";
 import CopyField from "@/components/CopyField";
 
-export const metadata: Metadata = { title: "MCP · Vendai" };
+export const metadata: Metadata = { title: "MCP · Slovend Intelligence" };
 export const dynamic = "force-dynamic";
 
 function whenUTC(iso: string | null): string {
@@ -36,7 +36,7 @@ export default async function McpPage() {
       <div className="wrap">
         <div className="dash-head">
           <div>
-            <div className="kicker">Vendai · Integration</div>
+            <div className="kicker">Slovend Intelligence · Integration</div>
             <h1 className="serif-display">Connect your AI</h1>
           </div>
           <span className={`status ${configured ? "live" : "off"}`}>
@@ -46,7 +46,7 @@ export default async function McpPage() {
         </div>
 
         <p className="mcp-intro">
-          Vendai speaks <strong>MCP</strong> (Model Context Protocol) — the open standard
+          Slovend Intelligence speaks <strong>MCP</strong> (Model Context Protocol) — the open standard
           that lets you plug this data into your own AI. Connect <strong>ChatGPT</strong>,{" "}
           <strong>Claude</strong>, or any MCP client and ask about your machines, sales,
           reports and tax in plain language. It&apos;s <strong>read-only</strong> and scoped to
@@ -100,11 +100,11 @@ export default async function McpPage() {
               <b>ChatGPT:</b> Settings → Connectors (Developer mode) → add the URL → <em>Connect</em>.
             </li>
             <li>
-              A sign-in window opens — <b>sign in with Google</b> using your Vendai email
+              A sign-in window opens — <b>sign in with Google</b> using your Slovend Intelligence email
               (the same account your machines are under), then approve access.
             </li>
             <li>
-              In a chat, enable the Vendai connector and ask, e.g.{" "}
+              In a chat, enable the Slovend Intelligence connector and ask, e.g.{" "}
               <em>&ldquo;list my machines&rdquo;</em> or{" "}
               <em>&ldquo;how did my machine do over the last 7 days?&rdquo;</em>
             </li>

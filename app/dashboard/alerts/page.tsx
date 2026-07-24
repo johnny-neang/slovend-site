@@ -9,7 +9,7 @@ import { resolveWindow } from "@/lib/window";
 import { getMachineTimezone } from "@/lib/settings";
 import DateRangeForm from "@/components/DateRangeForm";
 
-export const metadata: Metadata = { title: "Alerts · Vendai" };
+export const metadata: Metadata = { title: "Alerts · Slovend Intelligence" };
 export const dynamic = "force-dynamic";
 
 const RANGES = [7, 30, 90];
@@ -178,7 +178,7 @@ export default async function AlertsPage({ searchParams }: { searchParams: Promi
             <p>
               {hasFilter
                 ? "No events match these filters in the selected window. Try widening the date range or clearing filters."
-                : "Vendai records this machine's recent events every time you open the dashboard, plus hourly. As events accumulate they'll be searchable here by date, severity and category."}
+                : "Slovend Intelligence records this machine's recent events every time you open the dashboard, plus hourly. As events accumulate they'll be searchable here by date, severity and category."}
             </p>
           </div>
         ) : (

@@ -21,7 +21,7 @@ import {
   type InvRow,
 } from "@/lib/inventory-view";
 
-export const metadata: Metadata = { title: "Inventory · Vendai" };
+export const metadata: Metadata = { title: "Inventory · Slovend Intelligence" };
 export const dynamic = "force-dynamic";
 
 type SP = { view?: string; hidden?: string };
