@@ -6,9 +6,18 @@ import {
   getMachineProducts,
   productNayaxId,
   probeEndpoint,
+  probeWriteEndpoint,
 } from "@/lib/nayax";
 
-export type Access = "ok" | "forbidden" | "unauthorized" | "missing" | "error" | "untested";
+export type Access =
+  | "ok"
+  | "granted"
+  | "forbidden"
+  | "unauthorized"
+  | "missing"
+  | "inconclusive"
+  | "error"
+  | "untested";
 
 export type EndpointRow = {
   key: string;
@@ -116,11 +125,103 @@ async function probeCatalog(conn: NayaxConn, mid: string): Promise<EndpointRow[]
   return rows;
 }
 
-/** Write capabilities are governed entirely by the operator's Nayax role. Slovend Intelligence
- * is read-only and never calls these — listed so users know they exist + are gated. */
-export const WRITE_CAPABILITIES: EndpointRow[] = [
-  { key: "planogram", label: "Update planogram & prices", method: "PUT/POST", type: "write", access: "untested", code: null },
-  { key: "catalog", label: "Create / update catalog products", method: "POST/PUT", type: "write", access: "untested", code: null },
-  { key: "routes", label: "Assign machines to routes", method: "POST", type: "write", access: "untested", code: null },
-  { key: "groups", label: "Manage product groups & tax", method: "POST/PUT/DELETE", type: "write", access: "untested", code: null },
+/* ------------------------------- writes ------------------------------- */
+
+/**
+ * Ids chosen so they cannot correspond to a real record. Every write probe is
+ * aimed at one of these, so a probe can clear the authorization gate and still
+ * be incapable of changing anything: the resource it names does not exist.
+ */
+const GHOST_MACHINE = 999999999;
+const GHOST_PRODUCT = 999999999;
+
+const GHOST_NOTE = "sent at a non-existent id — nothing is written";
+
+/**
+ * Write probes read inversely to reads: a 404/400/422 is the SUCCESS signal. The
+ * request passed the permission gate and only then failed on the missing ghost
+ * record, which is exactly the proof that the scope is granted. 403 is the token
+ * being stopped at the gate.
+ */
+function classifyWrite(code: number): Access {
+  if (code >= 200 && code < 300) return "granted";
+  if (code === 400 || code === 404 || code === 422) return "granted";
+  if (code === 403) return "forbidden";
+  if (code === 401) return "unauthorized";
+  if (code >= 300 && code < 400) return "error";
+  return "inconclusive";
+}
+
+/**
+ * Live-probe write scope with the operator's token, without mutating anything.
+ *
+ * Only ghost-id probes run here. Create endpoints (POST /productGroups,
+ * POST /operators/{id}/products, POST /metadata/upload-picture) have no id to
+ * ghost — probing them means POSTing a deliberately invalid body and trusting
+ * the API to reject it, which risks leaving a junk record in a live catalog.
+ * That is an acceptable trade in a deliberate CLI run
+ * (scripts/verify-nayax-scopes.sh) but not behind a dashboard button, so those
+ * are listed as un-probed below rather than fired from here.
+ */
+export async function probeWriteEndpoints(conn: NayaxConn): Promise<EndpointRow[]> {
+  const probes = [
+    {
+      key: "w-catalog",
+      label: "Update catalog product",
+      method: "PUT" as const,
+      path: `/operational/v1/products/${GHOST_PRODUCT}`,
+    },
+    {
+      key: "w-planogram",
+      label: "Update planogram & prices",
+      method: "PUT" as const,
+      path: `/operational/v1/machines/${GHOST_MACHINE}/machineProducts`,
+    },
+    {
+      key: "w-planogram-add",
+      label: "Add planogram row",
+      method: "POST" as const,
+      path: `/operational/v1/machines/${GHOST_MACHINE}/machineProducts`,
+    },
+  ];
+
+  const probed = await Promise.all(
+    probes.map(async (p): Promise<EndpointRow> => {
+      const code = await probeWriteEndpoint(conn, p.path, p.method);
+      return {
+        key: p.key,
+        label: p.label,
+        method: p.method,
+        type: "write",
+        access: code ? classifyWrite(code) : "error",
+        code: code || null,
+        note: GHOST_NOTE,
+      };
+    }),
+  );
+
+  return [...probed, ...UNPROBED_WRITES];
+}
+
+/** Write capabilities that exist in Lynx but have no safe non-mutating probe.
+ * Shown so the picture stays complete rather than implying these don't exist. */
+const UNPROBED_WRITES: EndpointRow[] = [
+  {
+    key: "w-groups",
+    label: "Create / manage product groups",
+    method: "POST/PUT/DELETE",
+    type: "write",
+    access: "untested",
+    code: null,
+    note: "no ghost id to target — would risk creating a record",
+  },
+  {
+    key: "w-routes",
+    label: "Assign machines to routes",
+    method: "POST",
+    type: "write",
+    access: "untested",
+    code: null,
+    note: "no ghost id to target — would risk creating a record",
+  },
 ];

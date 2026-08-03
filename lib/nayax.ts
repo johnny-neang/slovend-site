@@ -79,6 +79,51 @@ export async function probeEndpoint(conn: NayaxConn, path: string): Promise<numb
   }
 }
 
+/**
+ * Probe a write endpoint and return the raw HTTP status. Used by the API-access
+ * page to show whether the operator's Nayax role grants write scope.
+ *
+ * Callers MUST target an id that cannot exist (see GHOST_* in lib/api-status.ts):
+ * authorization is evaluated before the resource is resolved, so a granted scope
+ * surfaces as 404/400/422 — the request clears the permission gate and then
+ * fails on existence, writing nothing. A denied scope stops at 403.
+ *
+ * Redirects are NOT followed: lynx.nayax.com 301s bare /v1/... to
+ * /operational/v1/..., and fetch rewrites a redirected POST/PUT to GET, which
+ * would silently turn a write probe into a meaningless read. Surface the 3xx
+ * instead so a wrong prefix is visible rather than reported as a false result.
+ *
+ * Never throws.
+ */
+export async function probeWriteEndpoint(
+  conn: NayaxConn,
+  path: string,
+  method: "POST" | "PUT" | "PATCH" | "DELETE",
+  body = "{}",
+): Promise<number> {
+  const base = conn.base.replace(/\/$/, "");
+  const url = `${base}${path}`;
+  const send = (auth: string) =>
+    fetch(url, {
+      method,
+      headers: {
+        Authorization: auth,
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body,
+      cache: "no-store",
+      redirect: "manual",
+    });
+  try {
+    let res = await send(`Bearer ${conn.token}`);
+    if (res.status === 401 || res.status === 403) res = await send(conn.token);
+    return res.status;
+  } catch {
+    return 0;
+  }
+}
+
 /* ----------------------------- endpoints ----------------------------- */
 
 export async function listMachines(conn: NayaxConn): Promise<Machine[]> {

@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
 import { saveConnection, getConnection, deleteConnection } from "@/lib/connections";
-import { probeReadEndpoints, type AccessResult } from "@/lib/api-status";
+import { probeReadEndpoints, probeWriteEndpoints, type AccessResult } from "@/lib/api-status";
 import { deleteAllUserData } from "@/lib/account";
 
 async function requireUserKey(): Promise<string> {
@@ -40,7 +40,11 @@ export async function testAccess(_prev: AccessResult, _formData: FormData): Prom
   const conn = await getConnection(email);
   if (!conn) return { ran: true, rows: [], error: "No Nayax connection — add your token above first." };
   try {
-    return { ran: true, rows: await probeReadEndpoints(conn) };
+    const [reads, writes] = await Promise.all([
+      probeReadEndpoints(conn),
+      probeWriteEndpoints(conn),
+    ]);
+    return { ran: true, rows: [...reads, ...writes] };
   } catch (e) {
     return { ran: true, rows: [], error: e instanceof Error ? e.message : "Probe failed." };
   }

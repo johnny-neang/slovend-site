@@ -502,8 +502,9 @@
 .api-disconnect:hover { text-decoration: underline; }
 .acc { font-family: var(--label); font-weight: 700; font-size: 11px; letter-spacing: .03em; padding: 3px 9px; border-radius: 999px; display: inline-block; }
 .acc-ok { background: rgba(47,143,78,.14); color: #2f8f4e; }
+.acc-granted { background: rgba(47,143,78,.14); color: #2f8f4e; }
 .acc-forbidden { background: rgba(194,85,74,.16); color: #c2554a; }
-.acc-unauthorized, .acc-error, .acc-missing { background: rgba(24,21,19,.08); color: var(--ink-dim); }
+.acc-unauthorized, .acc-error, .acc-missing, .acc-inconclusive { background: rgba(24,21,19,.08); color: var(--ink-dim); }
 .acc-untested { background: rgba(24,21,19,.06); color: var(--ink-faint); }
 .type-read { font-family: var(--label); font-weight: 700; font-size: 11px; letter-spacing: .04em; color: #2f8f4e; text-transform: uppercase; }
 .type-write { font-family: var(--label); font-weight: 700; font-size: 11px; letter-spacing: .04em; color: #c2554a; text-transform: uppercase; }

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { getCtx } from "@/lib/dashboard";
-import { WRITE_CAPABILITIES } from "@/lib/api-status";
 import { updateApiCredentials, disconnectApi } from "../actions";
 import AccessTester from "@/components/AccessTester";
 
@@ -84,44 +83,9 @@ export default async function ApiPage({
           )}
         </div>
 
-        <div className="panel" style={{ marginBottom: 20 }}>
-          <div className="panel-h">Read endpoints · your live access</div>
-          <AccessTester connected={Boolean(conn)} />
-        </div>
-
         <div className="panel">
-          <div className="panel-h">Write endpoints</div>
-          <p className="mcp-sub" style={{ marginBottom: 14 }}>
-            Slovend Intelligence is <strong>read-only</strong> — it never changes anything in your account. Write
-            access (prices, planograms, routes, products) is governed entirely by your Nayax user
-            role. These are listed so you know what exists and that Nayax — not Slovend Intelligence — controls it.
-          </p>
-          <div className="table-card" style={{ border: "none" }}>
-            <table className="dtable">
-              <thead>
-                <tr>
-                  <th>Capability</th>
-                  <th>Method</th>
-                  <th>Type</th>
-                  <th>Slovend Intelligence</th>
-                </tr>
-              </thead>
-              <tbody>
-                {WRITE_CAPABILITIES.map((r) => (
-                  <tr key={r.key}>
-                    <td>{r.label}</td>
-                    <td className="mono">{r.method}</td>
-                    <td>
-                      <span className="type-write">Write</span>
-                    </td>
-                    <td>
-                      <span className="acc acc-untested">Not used</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <div className="panel-h">Your live access</div>
+          <AccessTester connected={Boolean(conn)} />
         </div>
       </div>
     </section>
