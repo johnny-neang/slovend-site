@@ -7,6 +7,7 @@ import {
   productNayaxId,
   probeEndpoint,
   probeWriteEndpoint,
+  getCatalogProduct,
 } from "@/lib/nayax";
 
 export type Access =
@@ -29,8 +30,20 @@ export type EndpointRow = {
   note?: string;
 };
 
+/** One field of a real catalog-product body, for confirming which keys Lynx uses. */
+export type CatalogField = { key: string; type: string; preview: string };
+
+/** A real catalog product, flattened to key/type/value so the field names the
+ * catalog* readers in lib/nayax.ts guess at can be confirmed against actual data. */
+export type CatalogInspection = { productId: string; fields: CatalogField[] };
+
 /** Result returned by the "Test access" server action (drives <AccessTester>). */
-export type AccessResult = { ran: boolean; rows: EndpointRow[]; error?: string };
+export type AccessResult = {
+  ran: boolean;
+  rows: EndpointRow[];
+  catalog?: CatalogInspection | null;
+  error?: string;
+};
 
 function classify(code: number): Access {
   if (code >= 200 && code < 300) return "ok";
@@ -107,10 +120,10 @@ async function probeCatalog(conn: NayaxConn, mid: string): Promise<EndpointRow[]
     } catch { /* ignore */ }
   }
 
-  // Detail probe — two prefixes, to discover which the token resolves.
+  // One probe only: lynx.nayax.com 301s /v1/... to /operational/v1/..., so the
+  // two prefixes are the same endpoint and probing both just duplicated a row.
   if (sampleId) {
-    rows.push(mk("catalog-detail", "Catalog product (detail)", await probeEndpoint(conn, `/v1/products/${sampleId}`)));
-    rows.push(mk("catalog-detail-op", "Catalog product (/operational)", await probeEndpoint(conn, `/operational/v1/products/${sampleId}`)));
+    rows.push(mk("catalog-detail", "Catalog product (detail)", await probeEndpoint(conn, `/operational/v1/products/${sampleId}`)));
   } else {
     rows.push({ key: "catalog-detail", label: "Catalog product (detail)", method: "GET", type: "read", access: "untested", code: null, note: "no slot has a catalog product" });
   }
@@ -125,6 +138,60 @@ async function probeCatalog(conn: NayaxConn, mid: string): Promise<EndpointRow[]
   return rows;
 }
 
+/* -------------------------- catalog inspection -------------------------- */
+
+function describeFields(o: Record<string, unknown>): CatalogField[] {
+  return Object.entries(o).map(([key, v]) => {
+    const type = v === null ? "null" : Array.isArray(v) ? "array" : typeof v;
+    let preview: string;
+    if (v === null || v === undefined) preview = "—";
+    else if (typeof v === "object") preview = JSON.stringify(v);
+    else preview = String(v);
+    return { key, type, preview: preview.slice(0, 160) };
+  });
+}
+
+/**
+ * Fetch one real catalog product and flatten it to key/type/value.
+ *
+ * The catalogName/catalogImage/catalogDescription readers in lib/nayax.ts were
+ * written against a 403 — every candidate field name in them is a guess. Now
+ * that catalog reads return 200, this surfaces an actual body so those guesses
+ * can be replaced with the real keys. Read-only; returns null when no slot on
+ * the machine links to a catalog product (NayaxProductID 0), which is the common
+ * case. Never throws.
+ */
+export async function inspectCatalogProduct(conn: NayaxConn): Promise<CatalogInspection | null> {
+  let mid = conn.machineId;
+  if (!mid) {
+    try {
+      const ms = await listMachines(conn);
+      mid = ms[0]?.MachineID != null ? String(ms[0].MachineID) : "";
+    } catch {
+      return null;
+    }
+  }
+  if (!mid) return null;
+
+  let sampleId = 0;
+  try {
+    for (const p of await getMachineProducts(conn, mid)) {
+      const n = productNayaxId(p);
+      if (n) {
+        sampleId = n;
+        break;
+      }
+    }
+  } catch {
+    return null;
+  }
+  if (!sampleId) return null;
+
+  const c = await getCatalogProduct(conn, sampleId);
+  if (!c) return null;
+  return { productId: String(sampleId), fields: describeFields(c) };
+}
+
 /* ------------------------------- writes ------------------------------- */
 
 /**
@@ -135,7 +202,26 @@ async function probeCatalog(conn: NayaxConn, mid: string): Promise<EndpointRow[]
 const GHOST_MACHINE = 999999999;
 const GHOST_PRODUCT = 999999999;
 
-const GHOST_NOTE = "sent at a non-existent id — nothing is written";
+/**
+ * What a given status actually proves. The codes are NOT equally strong:
+ *
+ *   404  conclusive. Authorization passed, the server then looked for the ghost
+ *        record and did not find it. Nothing else produces that sequence.
+ *   400  probable only. The probe body is `{}`; if this route validates the body
+ *        BEFORE checking permissions, a 400 says nothing about scope. Absence of
+ *        403 is still meaningful, it just is not proof.
+ *   5xx  not a denial. A denied scope returns 403, so a server error means the
+ *        request most likely cleared the gate and then broke inside Nayax.
+ */
+function writeNote(code: number): string {
+  if (code === 404) return "conclusive — cleared authz, then 404 on the missing record";
+  if (code === 400 || code === 422)
+    return "probable, not proof — may be body validation running before the permission check";
+  if (code === 403) return "stopped at the permission gate";
+  if (code >= 500) return "Nayax server error, not a denial — worth reporting to them";
+  if (code >= 300 && code < 400) return "redirected — wrong path prefix, result is meaningless";
+  return "sent at a non-existent id — nothing is written";
+}
 
 /**
  * Write probes read inversely to reads: a 404/400/422 is the SUCCESS signal. The
@@ -195,7 +281,7 @@ export async function probeWriteEndpoints(conn: NayaxConn): Promise<EndpointRow[
         type: "write",
         access: code ? classifyWrite(code) : "error",
         code: code || null,
-        note: GHOST_NOTE,
+        note: code ? writeNote(code) : "no response",
       };
     }),
   );

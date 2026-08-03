@@ -90,6 +90,42 @@ export default function AccessTester({ connected }: { connected: boolean }) {
         </>
       )}
 
+      {state.ran && state.catalog && (
+        <>
+          <div className="panel-h" style={{ marginTop: 24 }}>
+            Catalog product fields
+          </div>
+          <p className="mcp-sub" style={{ marginBottom: 0 }}>
+            The real body Lynx returns for catalog product{" "}
+            <span className="mono">{state.catalog.productId}</span> — the first slot on this machine
+            that links to one. Shown so the field names Slovend Intelligence reads (name, image,
+            description) can be matched to what Nayax actually sends.
+          </p>
+          <div className="table-card" style={{ border: "none", marginTop: 14 }}>
+            <table className="dtable">
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Type</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {state.catalog.fields.map((f) => (
+                  <tr key={f.key}>
+                    <td className="mono">{f.key}</td>
+                    <td className="muted">{f.type}</td>
+                    <td className="mono" style={{ wordBreak: "break-all" }}>
+                      {f.preview}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
       {state.ran && writes.length > 0 && (
         <>
           <div className="panel-h" style={{ marginTop: 24 }}>
