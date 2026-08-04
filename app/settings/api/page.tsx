@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { getCtx } from "@/lib/dashboard";
-import { updateApiCredentials, disconnectApi } from "../actions";
+import {
+  updateApiCredentials,
+  disconnectApi,
+  canaryVerifiedForCurrentMachine,
+} from "../actions";
 import AccessTester from "@/components/AccessTester";
+import WriteCanary from "@/components/WriteCanary";
 
 export const metadata: Metadata = { title: "API · Slovend Intelligence" };
 export const dynamic = "force-dynamic";
@@ -14,6 +19,7 @@ export default async function ApiPage({
   const ctx = await getCtx();
   const sp = await searchParams;
   const conn = ctx.conn;
+  const canaryVerified = conn ? await canaryVerifiedForCurrentMachine() : false;
   const maskedToken = conn ? `••••••••${conn.token.slice(-4)}` : "";
 
   return (
@@ -83,9 +89,18 @@ export default async function ApiPage({
           )}
         </div>
 
-        <div className="panel">
+        <div className="panel" style={{ marginBottom: 20 }}>
           <div className="panel-h">Your live access</div>
           <AccessTester connected={Boolean(conn)} />
+        </div>
+
+        <div className="panel">
+          <div className="panel-h">Planogram write canary</div>
+          <WriteCanary
+            connected={Boolean(conn)}
+            machineId={ctx.machineId ?? ""}
+            alreadyVerified={canaryVerified}
+          />
         </div>
       </div>
     </section>

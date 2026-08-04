@@ -17,6 +17,7 @@ export async function deleteAllUserData(userKey: string): Promise<void> {
     await sql`delete from tax_settings where user_key = ${userKey}`;
     await sql`delete from chat_threads where user_key = ${userKey}`;
     await sql`delete from mcp_activity where user_key = ${userKey}`;
+    await sql`delete from planogram_writes where user_key = ${userKey}`;
   }
   await deleteConnection(userKey);
 }

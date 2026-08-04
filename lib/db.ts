@@ -234,6 +234,33 @@ export function ensureSchema(): Promise<void> {
         )
       `;
       await sql`create index if not exists landing_scans_idx on landing_scans (user_key, machine_id, occurred_at desc)`;
+      // Audit log for every mutation sent to Nayax. Append-only: a row is written
+      // BEFORE the request leaves, so a crash mid-flight still leaves the
+      // pre-write planogram snapshot and evidence that something was attempted.
+      //
+      // before_rows is the disaster-recovery artifact. If a write ever turns out
+      // to have replace semantics and drops rows, this column holds the exact
+      // planogram that existed seconds earlier and can be sent back verbatim.
+      await sql`
+        create table if not exists planogram_writes (
+          id            bigserial primary key,
+          user_key      text not null,
+          machine_id    text not null,
+          action        text not null,
+          status        text not null,
+          http_status   int,
+          payload_mode  text not null default 'full-set',
+          changes       jsonb,
+          before_rows   jsonb not null,
+          after_rows    jsonb,
+          request_body  jsonb,
+          response_body text,
+          reverts_id    bigint references planogram_writes(id),
+          experiment    text,
+          created_at    timestamptz not null default now()
+        )
+      `;
+      await sql`create index if not exists planogram_writes_idx on planogram_writes (user_key, machine_id, created_at desc)`;
     })();
   }
   return _schema;

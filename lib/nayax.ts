@@ -98,11 +98,53 @@ export async function probeEndpoint(conn: NayaxConn, path: string): Promise<numb
 export async function probeWriteEndpoint(
   conn: NayaxConn,
   path: string,
-  method: "POST" | "PUT" | "PATCH" | "DELETE",
-  body = "{}",
+  method: WriteMethod,
+  payload: unknown = {},
 ): Promise<number> {
+  return (await lynxWrite(conn, path, method, payload)).status;
+}
+
+export type WriteMethod = "POST" | "PUT" | "PATCH" | "DELETE";
+
+export type LynxWriteResult = {
+  /** True only for 2xx. */
+  ok: boolean;
+  /** Raw HTTP status; 0 means the request never got a response. */
+  status: number;
+  /** A 3xx was returned and deliberately NOT followed — see below. */
+  redirected: boolean;
+  /** Response text, truncated. Persisted to the audit log: on a 4xx this body is
+   * how we learn the payload shape Lynx actually expects. */
+  body: string;
+};
+
+const MAX_RESPONSE_CAPTURE = 4000;
+
+/**
+ * Perform a real mutation against Lynx. The only function in the codebase that
+ * changes anything in a Nayax account.
+ *
+ * Redirects are never followed. lynx.nayax.com 301s bare `/v1/...` to
+ * `/operational/v1/...`, and fetch rewrites a redirected POST/PUT into a GET —
+ * which would silently turn a write into a read and report success for a
+ * mutation that never happened. A 3xx is surfaced as a failure instead.
+ *
+ * The Bearer→raw-token retry re-sends the request body, which is only safe
+ * because 401/403 means the gateway rejected it before doing any work. Never
+ * retry on any other status: a 5xx may well have applied.
+ *
+ * Returns a typed result and never throws — callers must record `status` and
+ * `body` in the audit log before interpreting them, especially on failure.
+ */
+export async function lynxWrite(
+  conn: NayaxConn,
+  path: string,
+  method: WriteMethod,
+  payload: unknown,
+): Promise<LynxWriteResult> {
   const base = conn.base.replace(/\/$/, "");
   const url = `${base}${path}`;
+  const body = JSON.stringify(payload ?? {});
   const send = (auth: string) =>
     fetch(url, {
       method,
@@ -118,9 +160,15 @@ export async function probeWriteEndpoint(
   try {
     let res = await send(`Bearer ${conn.token}`);
     if (res.status === 401 || res.status === 403) res = await send(conn.token);
-    return res.status;
+    const text = await res.text().catch(() => "");
+    return {
+      ok: res.status >= 200 && res.status < 300,
+      status: res.status,
+      redirected: res.status >= 300 && res.status < 400,
+      body: text.slice(0, MAX_RESPONSE_CAPTURE),
+    };
   } catch {
-    return 0;
+    return { ok: false, status: 0, redirected: false, body: "" };
   }
 }
 

@@ -10,6 +10,15 @@ import {
   type AccessResult,
 } from "@/lib/api-status";
 import { deleteAllUserData } from "@/lib/account";
+import { getMachineProducts, type Product } from "@/lib/nayax";
+import { getCtx } from "@/lib/dashboard";
+import { dbConfigured } from "@/lib/db";
+import {
+  buildFullSetPayload,
+  executePlanogramPut,
+  describeDiff,
+  hasVerifiedCanary,
+} from "@/lib/planogram-writes";
 
 async function requireUserKey(): Promise<string> {
   const session = await auth();
@@ -54,6 +63,121 @@ export async function testAccess(_prev: AccessResult, _formData: FormData): Prom
   } catch (e) {
     return { ran: true, rows: [], error: e instanceof Error ? e.message : "Probe failed." };
   }
+}
+
+/* --------------------------- write canary ---------------------------- */
+
+export type CanaryVariant = "array" | "wrapped";
+
+export type CanaryResult = {
+  ran: boolean;
+  error?: string;
+  machineId?: string;
+  variant?: CanaryVariant;
+  httpStatus?: number;
+  responseExcerpt?: string;
+  status?: string;
+  verifiedUnchanged?: boolean;
+  diffLines?: string[];
+  rowCount?: number;
+  auditId?: number | null;
+};
+
+/**
+ * Send the machine's CURRENT planogram back to Nayax unchanged, then re-read and
+ * diff it.
+ *
+ * This is the first real write this application has ever made, and it is
+ * deliberately a no-op: the payload is the planogram Lynx returned moments
+ * earlier, so a success changes nothing and a failure changes nothing. What it
+ * buys is the two facts we cannot learn any other way — whether Lynx accepts
+ * this payload shape at all, and whether the PUT patches rows or replaces the
+ * whole planogram. Slot editing stays locked until this passes.
+ */
+export async function runWriteCanary(
+  _prev: CanaryResult,
+  formData: FormData,
+): Promise<CanaryResult> {
+  const session = await auth();
+  const email = session?.user?.email?.toLowerCase();
+  if (!email) return { ran: true, error: "Not signed in." };
+  if (!dbConfigured()) {
+    return {
+      ran: true,
+      error: "No database configured. Writes are blocked because they could not be audited.",
+    };
+  }
+
+  // Resolve the target through getCtx — the SAME resolver the page used to render
+  // the machine id in the confirmation prompt. Reading conn.machineId directly
+  // here would ignore the machine-selector cookie, so on a multi-machine account
+  // the operator could type the id they were shown and write to a different
+  // machine entirely.
+  const ctx = await getCtx();
+  const conn = ctx.conn;
+  if (!conn) return { ran: true, error: "No Nayax connection — add your token above first." };
+  const machineId = ctx.machineId;
+  if (!machineId) return { ran: true, error: "Couldn't determine which machine to test." };
+
+  // Typed confirmation, mirroring the delete-account flow: the operator must name
+  // the machine they are about to write to.
+  const confirm = String(formData.get("confirm") ?? "").trim();
+  if (confirm !== machineId) {
+    return {
+      ran: true,
+      machineId,
+      error: `Type the machine id (${machineId}) to confirm.`,
+    };
+  }
+
+  const variant: CanaryVariant = formData.get("variant") === "wrapped" ? "wrapped" : "array";
+
+  let rows: Product[] = [];
+  try {
+    rows = await getMachineProducts(conn, machineId);
+  } catch {
+    return { ran: true, machineId, error: "Couldn't read the planogram — nothing was sent." };
+  }
+  if (!rows.length) {
+    return { ran: true, machineId, error: "Lynx returned an empty planogram — nothing was sent." };
+  }
+
+  // Zero edits: the payload IS the current planogram.
+  const { payload } = buildFullSetPayload(rows, []);
+  const body = variant === "wrapped" ? { MachineProducts: payload } : payload;
+
+  const res = await executePlanogramPut({
+    conn,
+    userKey: email,
+    machineId,
+    action: "canary",
+    beforeRows: rows,
+    payload: body,
+    changes: null,
+    payloadMode: `canary:${variant}`,
+  });
+
+  return {
+    ran: true,
+    machineId,
+    variant,
+    httpStatus: res.httpStatus,
+    responseExcerpt: res.responseExcerpt,
+    status: res.status,
+    verifiedUnchanged: res.diff ? res.diff.identical : undefined,
+    diffLines: res.diff ? describeDiff(res.diff) : [],
+    rowCount: rows.length,
+    auditId: res.auditId,
+  };
+}
+
+/** Whether this machine's write path has already been proven (gates slot editing). */
+export async function canaryVerifiedForCurrentMachine(): Promise<boolean> {
+  // Same resolver as runWriteCanary, so the gate is evaluated for the machine
+  // the operator is actually looking at.
+  const ctx = await getCtx();
+  if (!ctx.email || !ctx.conn || !ctx.machineId) return false;
+  return hasVerifiedCanary(ctx.email, ctx.machineId);
 }
 
 /** Permanently delete all of the signed-in user's Slovend Intelligence data, then sign out. */
