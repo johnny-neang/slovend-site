@@ -9,6 +9,7 @@ import {
   productPar,
   productSlot,
   productName,
+  productNayaxId,
 } from "@/lib/nayax";
 import { dbConfigured, getSql, ensureSchema } from "@/lib/db";
 import { mdbToSlot } from "@/lib/slot-code";
@@ -102,6 +103,41 @@ export type PlanogramDiff = {
   countBefore: number;
   countAfter: number;
 };
+
+/* --------------------------- write readiness -------------------------- */
+
+export type WriteReadiness = {
+  total: number;
+  ready: number;
+  blockedSlots: string[];
+  canWrite: boolean;
+};
+
+/**
+ * Whether Nayax will accept a planogram write for these rows at all.
+ *
+ * Confirmed against the live API on 2026-08-04: `PUT machineProducts` validates
+ * every item in the payload and rejects the whole request with
+ * "Item number N contains invalid NayaxProductID: 0" if any row has no catalog
+ * product assigned. Since every write we make carries the full row set (see
+ * buildFullSetPayload), a single unassigned slot blocks all price and par
+ * editing for the entire machine.
+ *
+ * This is a pre-flight check so the UI can explain that up front instead of
+ * spending a rejected round-trip to discover it.
+ */
+export function assessWriteReadiness(rows: Product[]): WriteReadiness {
+  const blockedSlots: string[] = [];
+  for (const r of rows) {
+    if (productNayaxId(r) == null) blockedSlots.push(productSlot(r) || "—");
+  }
+  return {
+    total: rows.length,
+    ready: rows.length - blockedSlots.length,
+    blockedSlots,
+    canWrite: rows.length > 0 && blockedSlots.length === 0,
+  };
+}
 
 /* ----------------------------- validation ---------------------------- */
 

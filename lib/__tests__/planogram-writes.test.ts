@@ -5,6 +5,7 @@ import {
   diffPlanograms,
   decideStatus,
   describeChanges,
+  assessWriteReadiness,
   snapshotSlots,
   PRICE_MAX,
   PAR_MAX,
@@ -337,6 +338,38 @@ describe("decideStatus — a write that never landed must never read as success"
         changedSomething: false,
       }),
     ).toBe("applied_unverified");
+  });
+});
+
+describe("assessWriteReadiness", () => {
+  // Confirmed against the live API 2026-08-04: Nayax rejects the whole PUT with
+  // "Item number N contains invalid NayaxProductID: 0" if ANY row is unassigned.
+  it("blocks the machine when any slot has no product assigned", () => {
+    const r = assessWriteReadiness([
+      { MDBCode: 1031, NayaxProductID: 791100005082545 },
+      { MDBCode: 769, NayaxProductID: 0 },
+    ]);
+    expect(r.canWrite).toBe(false);
+    expect(r.ready).toBe(1);
+    expect(r.total).toBe(2);
+    expect(r.blockedSlots).toEqual(["301"]);
+  });
+
+  it("allows writes only when every row has a product", () => {
+    const r = assessWriteReadiness([
+      { MDBCode: 1031, NayaxProductID: 1 },
+      { MDBCode: 769, NayaxProductID: 2 },
+    ]);
+    expect(r.canWrite).toBe(true);
+    expect(r.blockedSlots).toEqual([]);
+  });
+
+  it("treats a missing NayaxProductID the same as zero", () => {
+    expect(assessWriteReadiness([{ MDBCode: 1031 }]).canWrite).toBe(false);
+  });
+
+  it("does not report an empty planogram as writable", () => {
+    expect(assessWriteReadiness([]).canWrite).toBe(false);
   });
 });
 

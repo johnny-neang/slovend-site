@@ -18,6 +18,8 @@ import {
   executePlanogramPut,
   describeDiff,
   hasVerifiedCanary,
+  assessWriteReadiness,
+  type WriteReadiness,
 } from "@/lib/planogram-writes";
 
 async function requireUserKey(): Promise<string> {
@@ -73,6 +75,7 @@ export type CanaryResult = {
   ran: boolean;
   error?: string;
   machineId?: string;
+  readiness?: WriteReadiness;
   variant?: CanaryVariant;
   httpStatus?: number;
   responseExcerpt?: string;
@@ -142,6 +145,21 @@ export async function runWriteCanary(
     return { ran: true, machineId, error: "Lynx returned an empty planogram — nothing was sent." };
   }
 
+  // Pre-flight. Nayax validates every item in the payload and rejects the whole
+  // request if any row has NayaxProductID 0, so sending would burn a round-trip
+  // to rediscover a blocker we can already see. Report it instead.
+  const readiness = assessWriteReadiness(rows);
+  if (!readiness.canWrite) {
+    return {
+      ran: true,
+      machineId,
+      readiness,
+      error:
+        `${readiness.blockedSlots.length} of ${readiness.total} slots have no product assigned ` +
+        `in Nayax. Planogram writes are rejected while any slot is unassigned, so nothing was sent.`,
+    };
+  }
+
   // Zero edits: the payload IS the current planogram.
   const { payload } = buildFullSetPayload(rows, []);
   const body = variant === "wrapped" ? { MachineProducts: payload } : payload;
@@ -169,6 +187,17 @@ export async function runWriteCanary(
     rowCount: rows.length,
     auditId: res.auditId,
   };
+}
+
+/** Read-only: can Nayax accept a planogram write for the selected machine at all? */
+export async function writeReadinessForCurrentMachine(): Promise<WriteReadiness | null> {
+  const ctx = await getCtx();
+  if (!ctx.conn || !ctx.machineId) return null;
+  try {
+    return assessWriteReadiness(await getMachineProducts(ctx.conn, ctx.machineId));
+  } catch {
+    return null;
+  }
 }
 
 /** Whether this machine's write path has already been proven (gates slot editing). */

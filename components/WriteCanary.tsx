@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { runWriteCanary, type CanaryResult } from "@/app/settings/actions";
+import type { WriteReadiness } from "@/lib/planogram-writes";
 
 const initial: CanaryResult = { ran: false };
 
@@ -14,12 +15,15 @@ export default function WriteCanary({
   connected,
   machineId,
   alreadyVerified,
+  readiness,
 }: {
   connected: boolean;
   machineId: string;
   alreadyVerified: boolean;
+  readiness: WriteReadiness | null;
 }) {
   const [state, formAction, pending] = useActionState(runWriteCanary, initial);
+  const ready = state.readiness ?? readiness;
 
   const verdict = (() => {
     if (!state.ran || state.error) return null;
@@ -50,6 +54,40 @@ export default function WriteCanary({
       {alreadyVerified && (
         <p className="api-saved" style={{ marginBottom: 14 }}>
           This machine&apos;s write path is already verified. Re-running is safe.
+        </p>
+      )}
+
+      {ready && (
+        <div className="table-card" style={{ border: "none", marginBottom: 16 }}>
+          <table className="dtable">
+            <tbody>
+              <tr>
+                <td>Slots with a product assigned</td>
+                <td>
+                  <span className={`acc ${ready.canWrite ? "acc-granted" : "acc-forbidden"}`}>
+                    {ready.ready} of {ready.total}
+                  </span>
+                </td>
+              </tr>
+              {!ready.canWrite && (
+                <tr>
+                  <td>Blocking writes</td>
+                  <td className="mono" style={{ wordBreak: "break-word" }}>
+                    {ready.blockedSlots.join(", ")}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {ready && !ready.canWrite && (
+        <p className="tax-hint" style={{ marginBottom: 14 }}>
+          Nayax rejects a planogram write if <em>any</em> slot has no product assigned
+          (&ldquo;invalid NayaxProductID: 0&rdquo;), and every write carries the whole planogram —
+          so these slots block price and par editing for the entire machine. Assign products to
+          them in Nayax, then re-run this check.
         </p>
       )}
 

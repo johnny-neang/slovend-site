@@ -4,6 +4,7 @@ import {
   updateApiCredentials,
   disconnectApi,
   canaryVerifiedForCurrentMachine,
+  writeReadinessForCurrentMachine,
 } from "../actions";
 import AccessTester from "@/components/AccessTester";
 import WriteCanary from "@/components/WriteCanary";
@@ -19,7 +20,9 @@ export default async function ApiPage({
   const ctx = await getCtx();
   const sp = await searchParams;
   const conn = ctx.conn;
-  const canaryVerified = conn ? await canaryVerifiedForCurrentMachine() : false;
+  const [canaryVerified, writeReadiness] = conn
+    ? await Promise.all([canaryVerifiedForCurrentMachine(), writeReadinessForCurrentMachine()])
+    : [false, null];
   const maskedToken = conn ? `••••••••${conn.token.slice(-4)}` : "";
 
   return (
@@ -100,6 +103,7 @@ export default async function ApiPage({
             connected={Boolean(conn)}
             machineId={ctx.machineId ?? ""}
             alreadyVerified={canaryVerified}
+            readiness={writeReadiness}
           />
         </div>
       </div>
