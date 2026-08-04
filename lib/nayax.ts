@@ -521,19 +521,28 @@ export async function getCatalogProducts(
   return out;
 }
 
-// Candidate keys are best-guess until a real 200 catalog body is seen; reorder to
-// put the confirmed key first once observed.
+/*
+ * Field names below are CONFIRMED against a real 200 body observed 2026-08-04
+ * (catalog product 385498639827270), not guessed:
+ *
+ *   ProductName        "funny"
+ *   DEXProductName     "funny onions"          <- what the machine itself displays
+ *   ProductDescription "description of funny onons"
+ *   ProductPictureUrl  null                    <- present, but unset on this product
+ *
+ * Aliases are kept behind the confirmed key only as tolerance for other Lynx
+ * tenants; the first entry is the one this account actually returns.
+ */
 export function catalogName(c: CatalogProduct): string {
-  return pickStr(c, ["ProductName", "Name", "DisplayName", "Title", "ItemName", "Description"]);
+  // No "Description" fallback here — it used to mean an unnamed product rendered
+  // its description as its name.
+  return pickStr(c, ["ProductName", "DEXProductName", "Name", "DisplayName", "Title"]);
 }
 export function catalogImage(c: CatalogProduct): string {
-  return pickStr(c, [
-    "ProductImageUrl", "ImageUrl", "ImageURL", "PictureUrl", "Image",
-    "Picture", "ThumbnailUrl", "MediaUrl", "ProductPictureUrl",
-  ]);
+  return pickStr(c, ["ProductPictureUrl", "ProductImageUrl", "ImageUrl", "PictureUrl", "ThumbnailUrl"]);
 }
 export function catalogDescription(c: CatalogProduct): string {
-  return pickStr(c, ["LongDescription", "Description", "ProductDescription", "Details", "Summary"]);
+  return pickStr(c, ["ProductDescription", "LongDescription", "Description", "Details"]);
 }
 
 /* status */
