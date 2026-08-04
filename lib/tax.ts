@@ -1,5 +1,5 @@
 import "server-only";
-import { dbConfigured, getSql, ensureSchema } from "@/lib/db";
+import { dbConfigured, getSql, ensureSchema, SALE_IS_VEND } from "@/lib/db";
 import { sqlTz } from "@/lib/settings";
 import type { Win } from "@/lib/window";
 
@@ -133,8 +133,11 @@ export async function taxReport(
   const from = win.fromDate;
   const to = win.toDate;
   const P = [userKey, machineId, from, to];
+  // SALE_IS_VEND keeps the transaction count to real vends. Gross is unaffected
+  // (pre-auths carry $0) but they would otherwise inflate the txn count on a
+  // filing report.
   const bounds =
-    `user_key = $1 and machine_id = $2 ` +
+    `user_key = $1 and machine_id = $2 and ${SALE_IS_VEND} ` +
     `and occurred_at >= ($3::date)::timestamp at time zone ${Z} ` +
     `and occurred_at <  (($4::date + 1)::timestamp) at time zone ${Z}`;
 

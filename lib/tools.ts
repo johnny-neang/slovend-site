@@ -9,8 +9,10 @@ import {
   getMachineProducts,
   saleAmount,
   saleLabel,
+  saleSlot,
   saleTime,
   salePayment,
+  isAuthNoise,
   alertText,
   alertTime,
   alertCategory,
@@ -98,14 +100,19 @@ export async function toolStatus(ctx: ToolCtx, id?: string) {
 
 export async function toolSales(ctx: ToolCtx, id?: string) {
   const machineId = await resolveMachineId(ctx, id);
-  const sales = await getLastSales(ctx.conn, machineId);
+  // Drop card pre-auths (MDB -1 at $0.00) — reader chatter, not vends.
+  const sales = (await getLastSales(ctx.conn, machineId)).filter((s) => !isAuthNoise(s));
   const revenue = sales.reduce((a, s) => a + saleAmount(s), 0);
   const pay: Record<string, number> = {};
   const prod: Record<string, { count: number; revenue: number }> = {};
   for (const s of sales) {
     const p = salePayment(s) || "Unknown";
     pay[p] = (pay[p] ?? 0) + 1;
-    const n = saleLabel(s);
+    // Key by slot so one physical selection is one row. The raw Lynx label
+    // embeds the price ("Unknown(1031 = 7.00)"), so keying on it splits a slot
+    // across every price it has sold at.
+    const slot = saleSlot(s);
+    const n = slot === "—" ? saleLabel(s) : `Slot ${slot}`;
     prod[n] = prod[n] ?? { count: 0, revenue: 0 };
     prod[n].count += 1;
     prod[n].revenue += saleAmount(s);
@@ -115,6 +122,7 @@ export async function toolSales(ctx: ToolCtx, id?: string) {
     .slice(0, 8)
     .map(([name, v]) => ({ name, ...v }));
   const recent = sales.slice(0, 15).map((s) => ({
+    slot: saleSlot(s),
     product: saleLabel(s),
     amount: saleAmount(s),
     payment: salePayment(s),

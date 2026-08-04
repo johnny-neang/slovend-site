@@ -699,3 +699,21 @@ tr.tx-total td { font-family: var(--label); font-weight: 800; border-top: 2px so
 .vend-fb-done h2 { font-family: var(--display); font-size: 24px; color: var(--ink); margin: 8px 0 4px; }
 .vend-fb-done p { font-family: var(--body); font-size: 14px; color: var(--ink-dim); margin: 0; }
 .vend-foot { text-align: center; font-family: var(--label); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); margin-top: 34px; }
+
+/* ---- Restock pick list ---------------------------------------------- */
+.pick-list .panel-badge { background: rgba(24,21,19,.06); color: var(--ink-dim); }
+
+/* Print the pick list as a standalone run sheet: everything else is chrome
+   the operator doesn't need on paper. Triggered by the browser's own Print. */
+@media print {
+  .dash-bar, .site-header, .site-footer, .page-rays,
+  .dash-head .report-controls, .inv-actions, .inv-hide-form { display: none !important; }
+  .dash-page .panel:not(.pick-list),
+  .dash-page .table-card:not(.pick-list .table-card),
+  .dash-page > .wrap > .note { display: none !important; }
+  .pick-list { border: none !important; margin: 0 !important; padding: 0 !important; }
+  .pick-list .note { display: block !important; }
+  .pick-list .panel-badge { border: 1px solid #999; }
+  .dtable { font-size: 12pt; }
+  a[href]::after { content: none !important; }
+}

@@ -16,6 +16,26 @@ export function getSql() {
   return _sql;
 }
 
+/**
+ * SQL predicate matching real vends, excluding the card pre-authorizations Lynx
+ * logs as MDB -1 at $0.00 when a reader authorizes a card that never buys.
+ * Defined once because every sales aggregate (reports, tax, exports) must agree
+ * — a filter applied in some queries but not others produces totals that don't
+ * reconcile across pages.
+ *
+ * The coalesce calls are load-bearing: `mdb_code = -1` is NULL for rows with no
+ * decodable code, and `not (... and NULL)` is NULL, which SQL treats as false
+ * and would silently drop legitimate rows. Defaulting the code to 0 keeps the
+ * exclusion to genuine -1 rows only.
+ *
+ * Prefix the column with a table alias when the query joins (see SALE_IS_VEND_AS).
+ */
+export const SALE_IS_VEND = `not (coalesce(amount,0) = 0 and coalesce(mdb_code,0) = -1)`;
+
+/** Alias-qualified variant of SALE_IS_VEND, for queries that join the sales table. */
+export const SALE_IS_VEND_AS = (a: string) =>
+  `not (coalesce(${a}.amount,0) = 0 and coalesce(${a}.mdb_code,0) = -1)`;
+
 let _schema: Promise<void> | null = null;
 export function ensureSchema(): Promise<void> {
   if (!_schema) {
@@ -67,6 +87,20 @@ export function ensureSchema(): Promise<void> {
         )
       `;
       await sql`create index if not exists sales_machine_time_idx on sales (user_key, machine_id, occurred_at desc)`;
+      // NOTE: keep in sync with SALE_IS_VEND below when changing sale columns.
+      // Slot (MDB) attribution for sales. Lynx gives no slot column — the code is
+      // embedded in the product label ("Unknown(1028 = 1.00)") — so historically
+      // every per-slot read had to re-parse that string. Storing it makes slot the
+      // group-by key for analytics. Backfilled once for rows ingested before this
+      // column existed; the `is null` guard makes re-running a no-op.
+      await sql`alter table sales add column if not exists mdb_code int`;
+      await sql`
+        update sales
+           set mdb_code = substring(product from '\\((-?\\d+)\\s*=')::int
+         where mdb_code is null
+           and product ~ '\\((-?\\d+)\\s*='
+      `;
+      await sql`create index if not exists sales_slot_idx on sales (user_key, machine_id, mdb_code, occurred_at desc)`;
       await sql`
         create table if not exists machine_settings (
           user_key    text not null,

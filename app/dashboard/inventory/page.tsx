@@ -20,6 +20,8 @@ import {
   packInventoryGrid,
   type InvRow,
 } from "@/lib/inventory-view";
+import { vendsBySlot, shareOfVendsAfter } from "@/lib/reports";
+import { getMachineTimezone } from "@/lib/settings";
 
 export const metadata: Metadata = { title: "Inventory · Slovend Intelligence" };
 export const dynamic = "force-dynamic";
@@ -92,6 +94,19 @@ export default async function InventoryPage({
   // Group by row, pack each row left-to-right by column (no gaps).
   const gridRows = packInventoryGrid(showHidden ? rows : visible);
   const listRows = showHidden ? rows : visible;
+
+  // Restock pick list: 7-day demand per slot, plus the machine's own timing
+  // pattern. Names resolve through the same precedence as the grid above.
+  const tz = ctx.email
+    ? await getMachineTimezone(ctx.email, ctx.machineId)
+    : "America/Los_Angeles";
+  const [movers, timing] = ctx.email
+    ? await Promise.all([
+        vendsBySlot(ctx.email, ctx.machineId, 7),
+        shareOfVendsAfter(ctx.email, ctx.machineId, tz, 12),
+      ])
+    : [[], null];
+  const nameByMdb = new Map(rows.filter((r) => r.mdb != null).map((r) => [r.mdb as number, r]));
 
   // Preserve view/hidden across links.
   const href = (v: "list" | "grid", h: boolean) => {
@@ -319,6 +334,60 @@ export default async function InventoryPage({
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {movers.length > 0 && (
+          <div className="panel pick-list" style={{ marginTop: 22 }}>
+            <div className="panel-h-row">
+              <div className="panel-h">Restock pick list · last 7 days</div>
+              {timing && timing.pct >= 60 && (
+                <span className="panel-badge">
+                  {timing.pct}% of vends after noon — restock before 12pm
+                </span>
+              )}
+            </div>
+            <div className="table-card" style={{ border: "none" }}>
+              <table className="dtable">
+                <thead>
+                  <tr>
+                    <th>Slot</th>
+                    <th>Product</th>
+                    <th className="r">Vends</th>
+                    <th className="r">Revenue</th>
+                    <th>Last sold</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {movers.map((m) => {
+                    const row = nameByMdb.get(m.mdb);
+                    return (
+                      <tr key={m.mdb}>
+                        <td className="mono">{m.slot}</td>
+                        <td>{row?.name || `Slot ${m.slot}`}</td>
+                        <td className="r">{m.vends}</td>
+                        <td className="r amt">${m.revenue.toFixed(2)}</td>
+                        <td className="muted">
+                          {m.lastSold
+                            ? new Intl.DateTimeFormat("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                hour: "numeric",
+                                minute: "2-digit",
+                                timeZone: tz,
+                              }).format(new Date(m.lastSold))
+                            : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="note" style={{ textAlign: "left", marginTop: 10 }}>
+              Busiest selections first — what to load before your next visit.
+              Vend counts come from recorded sales, not from machine stock levels.
+            </p>
           </div>
         )}
 

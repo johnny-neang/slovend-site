@@ -8,10 +8,12 @@ import {
   getLastAlerts,
   saleAmount,
   saleLabel,
+  saleMdbCode,
   salePayment,
   saleCurrency,
   saleTxnId,
   saleOccurredAtGMT,
+  isAuthNoise,
   alertId,
   alertText,
   alertTime,
@@ -43,9 +45,14 @@ export async function ingestSales(
   const seen = new Set<string>();
   const rows = sales
     .slice(0, 500)
+    // Card pre-auths (MDB -1 at $0.00) are reader chatter, not vends — they
+    // inflate vend counts and crowd the recent-sales feed. isAuthNoise requires
+    // both conditions, so a genuine $0.00 vend still lands.
+    .filter((s) => !isAuthNoise(s))
     .map((s) => ({
       txn: saleTxnId(s),
       product: saleLabel(s),
+      mdb: saleMdbCode(s),
       amount: saleAmount(s),
       currency: saleCurrency(s),
       payment: salePayment(s) || null,
@@ -58,7 +65,7 @@ export async function ingestSales(
     });
   if (!rows.length) return 0;
 
-  const cols = 8;
+  const cols = 9;
   const params: unknown[] = [];
   const tuples = rows
     .map((r, i) => {
@@ -68,17 +75,18 @@ export async function ingestSales(
         machineId,
         r.txn,
         r.product,
+        r.mdb,
         r.amount,
         r.currency,
         r.payment,
         r.occurred,
       );
-      return `($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7},$${b + 8})`;
+      return `($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7},$${b + 8},$${b + 9})`;
     })
     .join(",");
 
   const text =
-    `insert into sales (user_key, machine_id, txn_id, product, amount, currency, payment_method, occurred_at) ` +
+    `insert into sales (user_key, machine_id, txn_id, product, mdb_code, amount, currency, payment_method, occurred_at) ` +
     `values ${tuples} on conflict (user_key, machine_id, txn_id) do nothing returning txn_id`;
 
   const inserted = (await sql.query(text, params)) as unknown[];

@@ -1,5 +1,5 @@
 import "server-only";
-import { dbConfigured, getSql, ensureSchema } from "@/lib/db";
+import { dbConfigured, getSql, ensureSchema, SALE_IS_VEND } from "@/lib/db";
 import { slotFromText } from "@/lib/nayax";
 import { sqlTz } from "@/lib/settings";
 import type { Win } from "@/lib/window";
@@ -27,7 +27,7 @@ export async function salesForExport(
     `select to_char(occurred_at at time zone ${Z}, 'YYYY-MM-DD HH24:MI:SS') as local_time,
             product, amount, currency, payment_method
      from sales
-     where user_key = $1 and machine_id = $2
+     where user_key = $1 and machine_id = $2 and ${SALE_IS_VEND}
        and occurred_at >= ($3::date)::timestamp at time zone ${Z}
        and occurred_at <  (($4::date + 1)::timestamp) at time zone ${Z}
      order by occurred_at desc nulls last

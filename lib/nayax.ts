@@ -271,18 +271,34 @@ export function saleTxnId(s: Sale): string {
     "ID",
   ]);
 }
-/** Vending slot for a sale. Lynx embeds the MDB code either in a field or in the
- * ProductName (e.g. "Unknown(1028 = 1.00)"); decode it like productSlot. */
+/**
+ * Raw MDB code for a sale. Lynx embeds it either in a field or inside the
+ * ProductName (e.g. "Unknown(1028 = 1.00)"). Returned verbatim — including the
+ * -1 Lynx uses for card pre-authorization events — so callers can tell a real
+ * selection from reader noise. Null when no code is present at all.
+ */
+export function saleMdbCode(s: Sale): number | null {
+  const code = pickNum(s, ["MDBCode", "MDB", "SelectionCode", "Selection"]);
+  if (code !== null) return Number.isFinite(code) ? code : null;
+  const m = pickStr(s, ["ProductName"]).match(/\((-?\d+)\s*=/);
+  if (!m) return null;
+  const parsed = parseInt(m[1], 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * A card pre-authorization, not a vend: Lynx logs these as MDB -1 for $0.00 when
+ * a reader authorizes a card that never completes a purchase. Both conditions are
+ * required so a genuine $0.00 vend (promo, free-vend test) is never discarded.
+ */
+export function isAuthNoise(s: Sale): boolean {
+  return saleAmount(s) === 0 && saleMdbCode(s) === -1;
+}
+
+/** Vending slot for a sale, decoded from its MDB code. "—" when unmapped. */
 export function saleSlot(s: Sale): string {
-  let code = pickNum(s, ["MDBCode", "MDB", "SelectionCode", "Selection"]);
-  if (code === null) {
-    const m = pickStr(s, ["ProductName"]).match(/\((-?\d+)\s*=/);
-    if (m) code = parseInt(m[1], 10);
-  }
-  if (code === null || code <= 0) return "—";
-  const row = code >> 8;
-  const col = code & 0xff;
-  return `${row}${String(col).padStart(2, "0")}`;
+  const code = saleMdbCode(s);
+  return code === null ? "—" : mdbToSlot(code);
 }
 
 /** Decode a slot from a stored product string like "Unknown(1028 = 1.00)". */

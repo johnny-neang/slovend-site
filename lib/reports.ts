@@ -1,6 +1,13 @@
 import "server-only";
-import { dbConfigured, getSql, ensureSchema } from "@/lib/db";
+import {
+  dbConfigured,
+  getSql,
+  ensureSchema,
+  SALE_IS_VEND,
+  SALE_IS_VEND_AS,
+} from "@/lib/db";
 import { sqlTz } from "@/lib/settings";
+import { mdbToSlot } from "@/lib/slot-code";
 import type { Win } from "@/lib/window";
 
 export type ReportSummary = {
@@ -38,8 +45,10 @@ export async function reportSummary(
   const from = win.fromDate;
   const to = win.toDate;
   const P = [userKey, machineId, from, to];
+  // Rows ingested before the ingest-side noise filter are still in the table, so
+  // every read carries SALE_IS_VEND.
   const bounds =
-    `user_key = $1 and machine_id = $2 ` +
+    `user_key = $1 and machine_id = $2 and ${SALE_IS_VEND} ` +
     `and occurred_at >= ($3::date)::timestamp at time zone ${Z} ` +
     `and occurred_at <  (($4::date + 1)::timestamp) at time zone ${Z}`;
 
@@ -68,14 +77,30 @@ export async function reportSummary(
     )) as { d: string; vends: number; revenue: number }[];
     const byDay = bucketSeries(dayRows, from, to);
 
-    const topProducts = (await sql.query(
-      `select coalesce(nullif(product,''),'—') as product,
+    // Grouped by slot, not by the raw Lynx label. Lynx names every row
+    // "Unknown(1031 = 7.00)", so grouping on the label splits one slot across
+    // every price it has ever sold at and shows the operator nothing readable.
+    // mdb_code collapses those into one row per physical selection; rows with no
+    // decodable code fall back to the label so nothing is silently dropped.
+    // min(product) rather than a bare column: the grouping key for unattributable
+    // rows is the label itself, so min() is that same label, and for slot-grouped
+    // rows the label is discarded in favour of "Slot NNN". A bare `product` here
+    // is not functionally dependent on the GROUP BY and Postgres rejects it.
+    const topRows = (await sql.query(
+      `select mdb_code,
+              min(coalesce(nullif(product,''),'—')) as product,
               count(*)::int as vends,
               coalesce(sum(amount),0)::float as revenue
        from sales where ${bounds}
-       group by 1 order by revenue desc limit 10`,
+       group by mdb_code, case when mdb_code is null then product else '' end
+       order by revenue desc limit 10`,
       P,
-    )) as { product: string; vends: number; revenue: number }[];
+    )) as { mdb_code: number | null; product: string; vends: number; revenue: number }[];
+    const topProducts = topRows.map((r) => ({
+      product: r.mdb_code != null && r.mdb_code > 0 ? `Slot ${mdbToSlot(r.mdb_code)}` : r.product,
+      vends: r.vends,
+      revenue: r.revenue,
+    }));
 
     const payMix = (await sql.query(
       `select coalesce(nullif(payment_method,''),'Unknown') as method, count(*)::int as n
@@ -147,6 +172,92 @@ function bucketSeries(
   return out;
 }
 
+export type SlotVends = {
+  mdb: number;
+  slot: string;
+  vends: number;
+  revenue: number;
+  lastSold: string | null;
+};
+
+/**
+ * Vends per slot over a rolling window, busiest first — the demand half of the
+ * restock pick list. Only rows with a decodable MDB are returned: a slot is the
+ * unit an operator physically refills, and an unattributable sale can't be
+ * assigned to one.
+ */
+export async function vendsBySlot(
+  userKey: string,
+  machineId: string,
+  days = 7,
+  limit = 12,
+): Promise<SlotVends[]> {
+  if (!dbConfigured() || !machineId) return [];
+  await ensureSchema();
+  const sql = getSql();
+  try {
+    const rows = (await sql`
+      select mdb_code,
+             count(*)::int as vends,
+             coalesce(sum(amount),0)::float as revenue,
+             max(occurred_at) as last_sold
+        from sales
+       where user_key = ${userKey} and machine_id = ${machineId}
+         and mdb_code is not null and mdb_code > 0
+         and occurred_at >= now() - make_interval(days => ${days})
+       group by mdb_code
+       order by vends desc, revenue desc
+       limit ${limit}
+    `) as { mdb_code: number; vends: number; revenue: number; last_sold: string | null }[];
+    return rows.map((r) => ({
+      mdb: r.mdb_code,
+      slot: mdbToSlot(r.mdb_code),
+      vends: r.vends,
+      revenue: r.revenue,
+      lastSold: r.last_sold,
+    }));
+  } catch (e) {
+    console.error("vendsBySlot failed", e);
+    return [];
+  }
+}
+
+/**
+ * Share of vends that happen at or after `hour` (machine-local), over a rolling
+ * window. Drives the restock-timing hint — computed, never hardcoded, so the
+ * advice tracks the machine's real pattern instead of asserting a stale finding.
+ */
+export async function shareOfVendsAfter(
+  userKey: string,
+  machineId: string,
+  timezone: string,
+  hour = 12,
+  days = 90,
+): Promise<{ pct: number; vends: number } | null> {
+  if (!dbConfigured() || !machineId) return null;
+  await ensureSchema();
+  const sql = getSql();
+  const Z = sqlTz(timezone);
+  try {
+    const rows = (await sql.query(
+      `select count(*)::int as total,
+              count(*) filter (
+                where extract(hour from occurred_at at time zone ${Z}) >= $3
+              )::int as after
+         from sales
+        where user_key = $1 and machine_id = $2 and ${SALE_IS_VEND}
+          and occurred_at >= now() - make_interval(days => $4)`,
+      [userKey, machineId, hour, days],
+    )) as { total: number; after: number }[];
+    const r = rows[0];
+    if (!r || !r.total) return null;
+    return { pct: Math.round((r.after / r.total) * 100), vends: r.total };
+  } catch (e) {
+    console.error("shareOfVendsAfter failed", e);
+    return null;
+  }
+}
+
 /** Time-boxed totals for the overview: last 24 hours and last 7 days. */
 export async function overviewTotals(
   userKey: string,
@@ -165,6 +276,7 @@ export async function overviewTotals(
         count(*)::int as v7
       from sales
       where user_key = ${userKey} and machine_id = ${machineId}
+        and not (coalesce(amount,0) = 0 and coalesce(mdb_code,0) = -1)
         and occurred_at >= now() - interval '7 days'
     `) as { rev24: number; v24: number; rev7: number; v7: number }[];
     return rows[0] ?? zero;
@@ -205,6 +317,7 @@ export async function salesByHourLast24h(
        from hours
        left join sales s
          on s.user_key = $1 and s.machine_id = $2
+         and ${SALE_IS_VEND_AS("s")}
          and s.occurred_at >= now() - interval '25 hours'
          and date_trunc('hour', s.occurred_at at time zone ${Z}) = hours.h
        group by hours.h
