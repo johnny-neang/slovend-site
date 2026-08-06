@@ -41,6 +41,9 @@ export default function WriteCanary({
     if (state.status === "mismatch") {
       return { cls: "acc-forbidden", text: "Planogram changed — review below" };
     }
+    if (state.status === "ignored") {
+      return { cls: "acc-inconclusive", text: "Accepted, but nothing changed" };
+    }
     if (state.status === "applied_unverified") {
       return { cls: "acc-inconclusive", text: "Accepted, but the re-read couldn't confirm it" };
     }

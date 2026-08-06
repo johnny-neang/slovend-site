@@ -5,7 +5,9 @@ import { getCtx, machineLabel } from "@/lib/dashboard";
 import DashError from "@/components/DashError";
 import ProductMediaEditor from "@/components/ProductMediaEditor";
 import AddSlotEditor from "@/components/AddSlotEditor";
+import SlotPriceEditor from "@/components/SlotPriceEditor";
 import { setSlotHidden } from "@/app/dashboard/inventory/actions";
+import { hasVerifiedCanary } from "@/lib/planogram-writes";
 import { getProductMedia, type ProductMedia } from "@/lib/product-media";
 import {
   getMachineProducts,
@@ -71,6 +73,11 @@ export default async function InventoryPage({
     () => [] as Product[],
   );
   const low = products.filter(productLowStock);
+
+  // Price/par editing stays locked until the write canary has proven the path.
+  const canaryVerified = ctx.email
+    ? await hasVerifiedCanary(ctx.email, ctx.machineId)
+    : false;
 
   // Manual media (Neon) + best-effort Nayax catalog (often empty/403 today).
   const media = ctx.email
@@ -314,6 +321,19 @@ export default async function InventoryPage({
                           ) : (
                             <span className="badge-ok">OK</span>
                           )}
+                          {/* Editable only when Nayax can address the row AND the
+                              slot has a product — an unassigned slot fails
+                              Nayax's write validation. */}
+                          {r.machineProductId != null && r.nayaxProductId != null ? (
+                            <SlotPriceEditor
+                              machineProductId={r.machineProductId}
+                              slot={r.slot}
+                              name={r.name}
+                              price={r.price}
+                              par={r.par}
+                              canaryVerified={canaryVerified}
+                            />
+                          ) : null}
                           {r.mdb != null && r.mdb > 0 ? (
                             <HideForm
                               mdbCode={r.mdb}

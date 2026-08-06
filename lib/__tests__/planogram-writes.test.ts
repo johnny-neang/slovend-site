@@ -4,6 +4,7 @@ import {
   buildFullSetPayload,
   diffPlanograms,
   decideStatus,
+  wantsRealChange,
   describeChanges,
   assessWriteReadiness,
   rowWritableSlots,
@@ -309,6 +310,37 @@ describe("decideStatus — a write that never landed must never read as success"
     }
   });
 
+  // Regression: "no unintended change" was being treated as success even when
+  // the change we asked for never happened. A 200 whose body Lynx parsed and a
+  // 200 whose fields Lynx silently discarded are identical on the wire, and the
+  // field names we write are inferred rather than documented — so a real edit
+  // must prove itself by showing up in the verification read.
+  it("reports IGNORED when a real edit was accepted but nothing moved", () => {
+    expect(
+      decideStatus({
+        httpStatus: 200,
+        afterRows: someRows,
+        diff: identicalDiff,
+        intendedOnly: true,
+        changedSomething: false,
+        wantedChange: true,
+      }),
+    ).toBe("ignored");
+  });
+
+  it("reports VERIFIED when a real edit was accepted and is visible", () => {
+    expect(
+      decideStatus({
+        httpStatus: 200,
+        afterRows: someRows,
+        diff: intendedDiff,
+        intendedOnly: true,
+        changedSomething: true,
+        wantedChange: true,
+      }),
+    ).toBe("verified");
+  });
+
   it("treats an accepted no-op canary as verified", () => {
     expect(
       decideStatus({
@@ -343,6 +375,46 @@ describe("decideStatus — a write that never landed must never read as success"
         changedSomething: false,
       }),
     ).toBe("applied_unverified");
+  });
+});
+
+describe("wantsRealChange", () => {
+  const rec = (o: Partial<Record<string, number | null>>) => [
+    {
+      mdb: 1031,
+      slot: "407",
+      name: "",
+      old_price: null,
+      new_price: null,
+      old_par: null,
+      new_par: null,
+      ...o,
+    },
+  ] as never;
+
+  it("is false for a canary — no changes were requested", () => {
+    expect(wantsRealChange(null)).toBe(false);
+  });
+
+  it("is false when re-saving the identical price", () => {
+    expect(wantsRealChange(rec({ old_price: 7, new_price: 7 }))).toBe(false);
+  });
+
+  it("tolerates float representation when comparing money", () => {
+    expect(wantsRealChange(rec({ old_price: 0.1 + 0.2, new_price: 0.3 }))).toBe(false);
+  });
+
+  it("is true for a real price move", () => {
+    expect(wantsRealChange(rec({ old_price: 7, new_price: 7.25 }))).toBe(true);
+  });
+
+  it("is true when setting a par that was previously unset", () => {
+    expect(wantsRealChange(rec({ old_par: null, new_par: 10 }))).toBe(true);
+  });
+
+  it("treats par 0 as a real value, not as unset", () => {
+    expect(wantsRealChange(rec({ old_par: 10, new_par: 0 }))).toBe(true);
+    expect(wantsRealChange(rec({ old_par: 0, new_par: 0 }))).toBe(false);
   });
 });
 

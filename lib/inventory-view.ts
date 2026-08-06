@@ -5,6 +5,7 @@ import {
   productSlot,
   productMdbCode,
   productNayaxId,
+  productMachineProductId,
   productPar,
   productPrice,
   productMissing,
@@ -31,6 +32,12 @@ export type InvRow = {
   rowNum: number; // 9999 = "Other" (unmapped / MDB 0)
   col: number;
   mdb: number | null;
+  /** Per-row planogram id — the path parameter for a single-slot write. Null on
+   * operator-declared slots that Nayax isn't returning yet. */
+  machineProductId: number | null;
+  /** Non-zero only when the slot is mapped to a catalog product. A slot needs
+   * this to survive Nayax's write validation. */
+  nayaxProductId: number | null;
   name: string;
   image: string | null;
   description: string | null;
@@ -114,6 +121,8 @@ export function buildInventoryRows(input: {
       rowNum: Number.isFinite(rowNum) ? rowNum : 9999,
       col: Number.isFinite(col) ? col : 0,
       mdb,
+      machineProductId: productMachineProductId(p),
+      nayaxProductId: nayaxId,
       name,
       image,
       description,
@@ -151,6 +160,10 @@ export function buildInventoryRows(input: {
       rowNum: Number.isFinite(rowNum) ? rowNum : 9999,
       col: Number.isFinite(col) ? col : 0,
       mdb,
+      // Operator-declared only: Nayax has no row for this slot, so there is
+      // nothing to address a write to.
+      machineProductId: null,
+      nayaxProductId: null,
       name: man.name || `Selection ${slot}`,
       image: man.imageUrl,
       description: man.description,

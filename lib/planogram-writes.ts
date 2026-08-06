@@ -96,6 +96,9 @@ export type WriteAction = "canary" | "slot_change" | "revert" | "restore";
 
 export type WriteStatus =
   | "verified"
+  /** Nayax accepted the request but the planogram did not move — the fields we
+   * sent were most likely discarded. Not a success and not a transport failure. */
+  | "ignored"
   | "applied_unverified"
   | "mismatch"
   | "failed"
@@ -475,8 +478,11 @@ export function decideStatus(args: {
   diff: PlanogramDiff | null;
   intendedOnly: boolean;
   changedSomething: boolean;
+  /** Whether the edit set asked for a value that actually differs from the
+   * pre-write one. False for a canary (no changes) and for a same-value re-save. */
+  wantedChange?: boolean;
 }): WriteStatus {
-  const { httpStatus, afterRows, diff, intendedOnly, changedSomething } = args;
+  const { httpStatus, afterRows, diff, intendedOnly, changedSomething, wantedChange = false } = args;
 
   if (httpStatus === 0) {
     // No response at all — the request may never have left the process (DNS
@@ -498,9 +504,36 @@ export function decideStatus(args: {
   if (httpStatus < 200 || httpStatus >= 300) return "failed";
   if (!afterRows || !diff) return "applied_unverified";
   if (!intendedOnly) return "mismatch";
-  // Accepted, and the planogram now differs only as intended. For a canary
-  // (no changes requested) an identical planogram is exactly the success case.
+  // Accepted, and nothing changed that we did not ask for. But "no unintended
+  // change" is not the same as "the intended change happened": a 200 whose body
+  // Lynx parsed and a 200 whose fields Lynx silently discarded are identical on
+  // the wire. That is a live risk here, because the field names we write
+  // (PRICE_WRITE_FIELDS / PAR_WRITE_FIELDS) are inferred from what Lynx *reads*
+  // back, not from any documented write contract.
+  //
+  // The canary cannot rule it out either — its payload is a byte-identical echo,
+  // so an accepted write and an ignored one look the same. Only an edit that
+  // asks for a real delta can distinguish them, and it does so by requiring the
+  // delta to show up in the verification read.
+  if (wantedChange && !changedSomething) return "ignored";
+  // For a canary (no delta requested) an identical planogram IS the success case.
   return "verified";
+}
+
+/**
+ * Whether this edit set asks for a value that differs from the pre-write one.
+ * A canary (`changes === null`) and a re-save of identical values both yield
+ * false — neither can be expected to move the planogram.
+ */
+export function wantsRealChange(changes: ChangeRecord[] | null): boolean {
+  return Boolean(
+    changes?.some(
+      (c) =>
+        (c.new_price != null &&
+          (c.old_price == null || cents(c.new_price) !== cents(c.old_price))) ||
+        (c.new_par != null && c.new_par !== c.old_par),
+    ),
+  );
 }
 
 /** True when every observed change is one the edit set asked for. */
@@ -591,6 +624,7 @@ export async function executePlanogramPut(input: ExecuteInput): Promise<ExecuteR
     diff,
     intendedOnly,
     changedSomething: Boolean(diff && !diff.identical),
+    wantedChange: wantsRealChange(changes),
   });
 
   if (auditId != null) {
