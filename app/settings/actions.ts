@@ -28,7 +28,12 @@ import {
   describeDiff,
   hasVerifiedCanary,
   assessWriteReadiness,
+  rowWritableSlots,
+  findRowByMachineProductId,
+  buildRowPayload,
+  PLANOGRAM_ROW_PATH,
   type WriteReadiness,
+  type RowTarget,
 } from "@/lib/planogram-writes";
 
 async function requireUserKey(): Promise<string> {
@@ -93,6 +98,7 @@ export type CanaryResult = {
   diffLines?: string[];
   rowCount?: number;
   auditId?: number | null;
+  targetSlot?: string;
 };
 
 /**
@@ -198,12 +204,104 @@ export async function runWriteCanary(
   };
 }
 
+/**
+ * Single-slot no-op canary.
+ *
+ * The whole-map canary can never pass on this machine — 31 slots sit at
+ * NayaxProductID 0 and Lynx validates every row it is handed. The row endpoint
+ * submits ONE row, so a mapped slot can be written while the rest stay invalid.
+ * This sends that row back exactly as Lynx returned it: a success changes
+ * nothing, and it proves the endpoint, the payload shape, and the field names in
+ * one shot.
+ *
+ * The before/after diff still compares the FULL planogram, so if a row write
+ * damages untouched slots it is caught rather than assumed away.
+ */
+export async function runRowCanary(
+  _prev: CanaryResult,
+  formData: FormData,
+): Promise<CanaryResult> {
+  const session = await auth();
+  const email = session?.user?.email?.toLowerCase();
+  if (!email) return { ran: true, error: "Not signed in." };
+  if (!dbConfigured()) {
+    return { ran: true, error: "No database configured. Writes are blocked because they could not be audited." };
+  }
+
+  const ctx = await getCtx();
+  const conn = ctx.conn;
+  if (!conn) return { ran: true, error: "No Nayax connection — add your token above first." };
+  const machineId = ctx.machineId;
+  if (!machineId) return { ran: true, error: "Couldn't determine which machine to test." };
+
+  const confirm = String(formData.get("confirm") ?? "").trim();
+  if (confirm !== machineId) {
+    return { ran: true, machineId, error: `Type the machine id (${machineId}) to confirm.` };
+  }
+
+  let rows: Product[] = [];
+  try {
+    rows = await getMachineProducts(conn, machineId);
+  } catch {
+    return { ran: true, machineId, error: "Couldn't read the planogram — nothing was sent." };
+  }
+
+  const targets = rowWritableSlots(rows);
+  if (!targets.length) {
+    return {
+      ran: true,
+      machineId,
+      readiness: assessWriteReadiness(rows),
+      error:
+        "No slot on this machine has both a row id and an assigned product, so there is nothing " +
+        "that can be written one row at a time. Assign a product to at least one slot first.",
+    };
+  }
+
+  // Prefer an explicitly chosen slot; otherwise take the first writable one.
+  const wanted = Number(formData.get("machineProductId") ?? 0);
+  const target = targets.find((t) => t.machineProductId === wanted) ?? targets[0];
+  const row = findRowByMachineProductId(rows, target.machineProductId);
+  if (!row) return { ran: true, machineId, error: "That slot is no longer in the planogram." };
+
+  const res = await executePlanogramPut({
+    conn,
+    userKey: email,
+    machineId,
+    action: "canary",
+    beforeRows: rows,
+    payload: buildRowPayload(row, { mdb: target.mdb ?? 0 }), // no edits: byte-identical echo
+    changes: null,
+    payloadMode: `row:${target.machineProductId}`,
+    path: PLANOGRAM_ROW_PATH(machineId, target.machineProductId),
+  });
+
+  return {
+    ran: true,
+    machineId,
+    variant: "array",
+    httpStatus: res.httpStatus,
+    responseExcerpt: res.responseExcerpt,
+    status: res.status,
+    verifiedUnchanged: res.diff ? res.diff.identical : undefined,
+    diffLines: res.diff ? describeDiff(res.diff) : [],
+    rowCount: 1,
+    auditId: res.auditId,
+    readiness: assessWriteReadiness(rows),
+    targetSlot: target.slot,
+  };
+}
+
 /** Read-only: can Nayax accept a planogram write for the selected machine at all? */
-export async function writeReadinessForCurrentMachine(): Promise<WriteReadiness | null> {
+export async function writeReadinessForCurrentMachine(): Promise<{
+  readiness: WriteReadiness;
+  rowTargets: RowTarget[];
+} | null> {
   const ctx = await getCtx();
   if (!ctx.conn || !ctx.machineId) return null;
   try {
-    return assessWriteReadiness(await getMachineProducts(ctx.conn, ctx.machineId));
+    const rows = await getMachineProducts(ctx.conn, ctx.machineId);
+    return { readiness: assessWriteReadiness(rows), rowTargets: rowWritableSlots(rows) };
   } catch {
     return null;
   }

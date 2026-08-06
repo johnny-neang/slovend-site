@@ -1,8 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { runWriteCanary, type CanaryResult } from "@/app/settings/actions";
-import type { WriteReadiness } from "@/lib/planogram-writes";
+import { runWriteCanary, runRowCanary, type CanaryResult } from "@/app/settings/actions";
+import type { WriteReadiness, RowTarget } from "@/lib/planogram-writes";
 
 const initial: CanaryResult = { ran: false };
 
@@ -16,14 +16,22 @@ export default function WriteCanary({
   machineId,
   alreadyVerified,
   readiness,
+  rowTargets,
 }: {
   connected: boolean;
   machineId: string;
   alreadyVerified: boolean;
   readiness: WriteReadiness | null;
+  rowTargets: RowTarget[];
 }) {
-  const [state, formAction, pending] = useActionState(runWriteCanary, initial);
+  // Row-level is the primary path: the whole-map write cannot pass while any
+  // slot sits at NayaxProductID 0, and on this machine 31 of them do.
+  const [state, formAction, pending] = useActionState(
+    rowTargets.length > 0 ? runRowCanary : runWriteCanary,
+    initial,
+  );
   const ready = state.readiness ?? readiness;
+  const rowMode = rowTargets.length > 0;
 
   const verdict = (() => {
     if (!state.ran || state.error) return null;
@@ -45,10 +53,21 @@ export default function WriteCanary({
   return (
     <div>
       <p className="mcp-sub" style={{ marginBottom: 14 }}>
-        Sends your machine&apos;s <strong>current planogram back to Nayax unchanged</strong>, then
-        re-reads it and compares. A success changes nothing and a failure changes nothing — what it
-        proves is that the write path works and exactly what Nayax does with it. Editing prices and
-        par levels stays locked until this passes.
+        {rowMode ? (
+          <>
+            Sends <strong>one already-mapped slot back to Nayax exactly as it came</strong>, then
+            re-reads the whole planogram and compares. A success changes nothing and a failure
+            changes nothing. Nayax validates only the rows it&apos;s given, so this works even
+            though other slots have no product assigned — unlike a whole-planogram write, which
+            they reject outright. Editing prices and par levels stays locked until this passes.
+          </>
+        ) : (
+          <>
+            Sends your machine&apos;s <strong>current planogram back to Nayax unchanged</strong>,
+            then re-reads it and compares. A success changes nothing and a failure changes nothing —
+            what it proves is that the write path works and exactly what Nayax does with it.
+          </>
+        )}
       </p>
 
       {alreadyVerified && (
@@ -84,10 +103,17 @@ export default function WriteCanary({
 
       {ready && !ready.canWrite && (
         <p className="tax-hint" style={{ marginBottom: 14 }}>
-          Nayax rejects a planogram write if <em>any</em> slot has no product assigned
-          (&ldquo;invalid NayaxProductID: 0&rdquo;), and every write carries the whole planogram —
-          so these slots block price and par editing for the entire machine. Assign products to
-          them in Nayax, then re-run this check.
+          Nayax rejects a <em>whole-planogram</em> write if any slot has no product assigned
+          (&ldquo;invalid NayaxProductID: 0&rdquo;).{" "}
+          {rowMode ? (
+            <>
+              Single-slot writes are unaffected — {rowTargets.length} slot
+              {rowTargets.length === 1 ? "" : "s"} can be edited one at a time right now, and each
+              slot you map adds another.
+            </>
+          ) : (
+            <>Assign a product to at least one slot to unlock single-slot editing.</>
+          )}
         </p>
       )}
 
@@ -107,13 +133,32 @@ export default function WriteCanary({
               placeholder={machineId || "machine id"}
             />
           </div>
-          <div className="api-field">
-            <label htmlFor="canary-variant">Payload shape</label>
-            <select id="canary-variant" name="variant" defaultValue="array">
-              <option value="array">Array of rows (as Lynx returns them)</option>
-              <option value="wrapped">Wrapped in MachineProducts</option>
-            </select>
-          </div>
+          {rowMode ? (
+            <div className="api-field">
+              <label htmlFor="canary-slot">Slot to echo back</label>
+              <select
+                id="canary-slot"
+                name="machineProductId"
+                defaultValue={String(rowTargets[0]?.machineProductId ?? "")}
+              >
+                {rowTargets.map((t) => (
+                  <option key={t.machineProductId} value={t.machineProductId}>
+                    Slot {t.slot}
+                    {t.name ? ` · ${t.name}` : ""}
+                    {t.price != null ? ` · $${t.price.toFixed(2)}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="api-field">
+              <label htmlFor="canary-variant">Payload shape</label>
+              <select id="canary-variant" name="variant" defaultValue="array">
+                <option value="array">Array of rows (as Lynx returns them)</option>
+                <option value="wrapped">Wrapped in MachineProducts</option>
+              </select>
+            </div>
+          )}
           <button type="submit" className="tx-save" disabled={pending}>
             {pending ? "Running…" : "Run write canary"}
           </button>
@@ -143,11 +188,10 @@ export default function WriteCanary({
               </tr>
               <tr>
                 <td>Rows sent</td>
-                <td className="mono">{state.rowCount ?? 0}</td>
-              </tr>
-              <tr>
-                <td>Payload shape</td>
-                <td className="mono">{state.variant}</td>
+                <td className="mono">
+                  {state.rowCount ?? 0}
+                  {state.targetSlot ? ` · slot ${state.targetSlot}` : ""}
+                </td>
               </tr>
               {state.auditId != null && (
                 <tr>

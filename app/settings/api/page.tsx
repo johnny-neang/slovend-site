@@ -21,7 +21,7 @@ export default async function ApiPage({
   const ctx = await getCtx();
   const sp = await searchParams;
   const conn = ctx.conn;
-  const [canaryVerified, writeReadiness, catalog] = conn
+  const [canaryVerified, writeState, catalog] = conn
     ? await Promise.all([
         canaryVerifiedForCurrentMachine(),
         writeReadinessForCurrentMachine(),
@@ -106,8 +106,9 @@ export default async function ApiPage({
           <div className="panel" style={{ marginBottom: 20 }}>
             <div className="panel-h">Your Nayax product catalog</div>
             <p className="mcp-sub" style={{ marginBottom: 14 }}>
-              The products a slot can be mapped to. Mapping the {writeReadiness?.blockedSlots.length ?? 0}{" "}
-              unassigned slots is only meaningful if there are real products here to map them to.
+              The products a slot can be mapped to. Mapping the{" "}
+              {writeState?.readiness.blockedSlots.length ?? 0} unassigned slots is only meaningful if
+              there are real products here to map them to.
             </p>
             <div className="table-card" style={{ border: "none", marginBottom: 14 }}>
               <table className="dtable">
@@ -170,7 +171,8 @@ export default async function ApiPage({
             connected={Boolean(conn)}
             machineId={ctx.machineId ?? ""}
             alreadyVerified={canaryVerified}
-            readiness={writeReadiness}
+            readiness={writeState?.readiness ?? null}
+            rowTargets={writeState?.rowTargets ?? []}
           />
         </div>
       </div>

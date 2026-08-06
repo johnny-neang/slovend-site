@@ -6,6 +6,11 @@ import {
   decideStatus,
   describeChanges,
   assessWriteReadiness,
+  rowWritableSlots,
+  findRowByMachineProductId,
+  buildRowPayload,
+  PLANOGRAM_PATH,
+  PLANOGRAM_ROW_PATH,
   snapshotSlots,
   PRICE_MAX,
   PAR_MAX,
@@ -370,6 +375,69 @@ describe("assessWriteReadiness", () => {
 
   it("does not report an empty planogram as writable", () => {
     expect(assessWriteReadiness([]).canWrite).toBe(false);
+  });
+});
+
+describe("row-level writes", () => {
+  // PUT .../machineProducts/{MachineProductID} submits one row, and Lynx
+  // validates only what it is given — so a mapped slot is editable even while
+  // its siblings sit at NayaxProductID 0. This is what unblocks this machine.
+  const mixed = [
+    { MachineProductID: 5001, MDBCode: 1031, NayaxProductID: 385498639827270, MachinePrice: 7, PAR: null, Extra: "keep" },
+    { MachineProductID: 5002, MDBCode: 769, NayaxProductID: 0, MachinePrice: 8 },
+    { MDBCode: 1537, NayaxProductID: 12345, MachinePrice: 2 },
+  ];
+
+  it("offers only slots that have BOTH a row id and a product", () => {
+    const t = rowWritableSlots(mixed);
+    expect(t).toHaveLength(1);
+    expect(t[0]).toMatchObject({ machineProductId: 5001, slot: "407", price: 7 });
+  });
+
+  it("excludes unassigned slots — they would fail validation", () => {
+    expect(rowWritableSlots(mixed).some((t) => t.machineProductId === 5002)).toBe(false);
+  });
+
+  it("excludes rows with no MachineProductID — they cannot be addressed", () => {
+    expect(rowWritableSlots(mixed).some((t) => t.mdb === 1537)).toBe(false);
+  });
+
+  it("finds a row by its machine product id", () => {
+    expect(findRowByMachineProductId(mixed, 5001)?.MDBCode).toBe(1031);
+    expect(findRowByMachineProductId(mixed, 9999)).toBeNull();
+  });
+
+  it("echoes the row back byte-for-byte when nothing is edited", () => {
+    const row = mixed[0];
+    expect(buildRowPayload(row, { mdb: 1031 })).toEqual(row);
+  });
+
+  it("changes only the targeted field and preserves unmodelled ones", () => {
+    const out = buildRowPayload(mixed[0], { mdb: 1031, newPrice: 7.25 });
+    expect(out.MachinePrice).toBe(7.25);
+    expect(out.Extra).toBe("keep");
+    expect(out.NayaxProductID).toBe(385498639827270);
+  });
+
+  it("does not mutate the source row", () => {
+    const before = JSON.parse(JSON.stringify(mixed[0]));
+    buildRowPayload(mixed[0], { mdb: 1031, newPrice: 99 });
+    expect(mixed[0]).toEqual(before);
+  });
+});
+
+describe("PLANOGRAM_PATH", () => {
+  // The Lynx reference documents avoidDelete defaulting to false, and false
+  // means the request REPLACES the product map — rows absent from the payload
+  // are deleted. This must never be sent unpinned.
+  it("always pins avoidDelete=true on whole-map writes", () => {
+    expect(PLANOGRAM_PATH(399448903)).toContain("avoidDelete=true");
+  });
+
+  it("addresses a single row by MachineProductID", () => {
+    expect(PLANOGRAM_ROW_PATH(399448903, 5001)).toBe(
+      "/operational/v1/machines/399448903/machineProducts/5001",
+    );
   });
 });
 

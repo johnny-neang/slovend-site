@@ -10,6 +10,7 @@ import {
   productSlot,
   productName,
   productNayaxId,
+  productMachineProductId,
 } from "@/lib/nayax";
 import { dbConfigured, getSql, ensureSchema } from "@/lib/db";
 import { mdbToSlot } from "@/lib/slot-code";
@@ -364,6 +365,76 @@ export function describeChanges(rows: Product[], edits: SlotEdit[]): ChangeRecor
   });
 }
 
+/* ---------------------------- row-level write -------------------------- */
+
+export type RowTarget = {
+  machineProductId: number;
+  mdb: number | null;
+  slot: string;
+  name: string;
+  price: number | null;
+  par: number | null;
+  nayaxProductId: number | null;
+};
+
+/**
+ * Slots that can be written one at a time.
+ *
+ * `PUT .../machineProducts/{MachineProductID}` submits only the row it names, and
+ * Lynx validates only the rows it is given — so a slot with a real
+ * NayaxProductID is editable even while other slots sit at 0. That is what makes
+ * editing possible on this machine without first mapping all 33 slots.
+ *
+ * A row needs BOTH ids to qualify: MachineProductID to address it, and a
+ * non-zero NayaxProductID to survive validation.
+ */
+export function rowWritableSlots(rows: Product[]): RowTarget[] {
+  const out: RowTarget[] = [];
+  for (const r of rows) {
+    const machineProductId = productMachineProductId(r);
+    const nayaxProductId = productNayaxId(r);
+    if (machineProductId == null || nayaxProductId == null) continue;
+    out.push({
+      machineProductId,
+      mdb: productMdbCode(r),
+      slot: productSlot(r) || "—",
+      name: productName(r),
+      price: productPrice(r),
+      par: productPar(r),
+      nayaxProductId,
+    });
+  }
+  return out;
+}
+
+export function findRowByMachineProductId(rows: Product[], machineProductId: number): Product | null {
+  for (const r of rows) {
+    if (productMachineProductId(r) === machineProductId) return r;
+  }
+  return null;
+}
+
+/**
+ * Body for a single-row write: the row exactly as Lynx returned it, with only
+ * the targeted fields replaced.
+ *
+ * Sending the whole row rather than a sparse patch sidesteps a question the
+ * reference does not answer — every field is nullable, so an omitted field and
+ * a field explicitly set to null are indistinguishable, and we have no way to
+ * know whether omission means "leave alone" or "clear". Echoing the row back
+ * makes the question moot.
+ */
+export function buildRowPayload(row: Product, edit: SlotEdit): Product {
+  const copy: Product = { ...row };
+  if (edit.newPrice !== undefined) {
+    for (const f of PRICE_WRITE_FIELDS) copy[f] = edit.newPrice;
+  }
+  if (edit.newPar !== undefined) {
+    for (const f of PAR_WRITE_FIELDS) copy[f] = edit.newPar;
+  }
+  return copy;
+}
+
 /* ------------------------------ execution ----------------------------- */
 
 export type ExecuteInput = {
@@ -371,11 +442,16 @@ export type ExecuteInput = {
   userKey: string;
   machineId: string;
   action: WriteAction;
+  /** ALWAYS the full planogram, even for a single-row write — the verification
+   * diff compares whole snapshots so collateral damage to untouched slots is
+   * detected rather than assumed away. */
   beforeRows: Product[];
   payload: unknown;
   changes: ChangeRecord[] | null;
   revertsId?: number | null;
   payloadMode?: string;
+  /** Defaults to the whole-map path. Single-row writes pass PLANOGRAM_ROW_PATH. */
+  path?: string;
 };
 
 export type ExecuteResult = {
@@ -467,6 +543,7 @@ export async function executePlanogramPut(input: ExecuteInput): Promise<ExecuteR
     changes,
     revertsId = null,
     payloadMode = "full-set",
+    path,
   } = input;
 
   if (!dbConfigured()) {
@@ -495,7 +572,7 @@ export async function executePlanogramPut(input: ExecuteInput): Promise<ExecuteR
   `) as { id: number }[];
   const auditId = inserted[0]?.id ?? null;
 
-  const write = await lynxWrite(conn, PLANOGRAM_PATH(machineId), "PUT", payload);
+  const write = await lynxWrite(conn, path ?? PLANOGRAM_PATH(machineId), "PUT", payload);
 
   // Always re-read, even when the transport failed: a timed-out request may
   // still have been applied, and only the machine's own state can settle that.
