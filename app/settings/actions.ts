@@ -10,7 +10,16 @@ import {
   type AccessResult,
 } from "@/lib/api-status";
 import { deleteAllUserData } from "@/lib/account";
-import { getMachineProducts, type Product } from "@/lib/nayax";
+import {
+  getMachineProducts,
+  getCatalogProduct,
+  listCatalogProducts,
+  catalogOperatorId,
+  catalogName,
+  catalogImage,
+  productNayaxId,
+  type Product,
+} from "@/lib/nayax";
 import { getCtx } from "@/lib/dashboard";
 import { dbConfigured } from "@/lib/db";
 import {
@@ -195,6 +204,57 @@ export async function writeReadinessForCurrentMachine(): Promise<WriteReadiness 
   if (!ctx.conn || !ctx.machineId) return null;
   try {
     return assessWriteReadiness(await getMachineProducts(ctx.conn, ctx.machineId));
+  } catch {
+    return null;
+  }
+}
+
+export type CatalogSummary = {
+  operatorId: string;
+  total: number;
+  withPicture: number;
+  products: { id: string; name: string; dexName: string; hasPicture: boolean }[];
+};
+
+/**
+ * The operator's catalog — the set of products a slot could be mapped to.
+ *
+ * This is the fact that decides whether dashboard slot-mapping is worth
+ * building: mapping 31 slots is only meaningful if there are 31 real products
+ * to map them to. Read-only.
+ */
+export async function catalogSummaryForCurrentMachine(): Promise<CatalogSummary | null> {
+  const ctx = await getCtx();
+  if (!ctx.conn || !ctx.machineId) return null;
+  try {
+    // The operator id lives on the machine record; fall back to the ActorID
+    // carried by any catalog product the planogram already links to.
+    let operatorId = ctx.machine ? catalogOperatorId(ctx.machine) : "";
+    if (!operatorId) {
+      const rows = await getMachineProducts(ctx.conn, ctx.machineId);
+      for (const r of rows) {
+        const pid = productNayaxId(r);
+        if (!pid) continue;
+        const c = await getCatalogProduct(ctx.conn, pid);
+        if (c) operatorId = catalogOperatorId(c);
+        if (operatorId) break;
+      }
+    }
+    if (!operatorId) return null;
+
+    const list = await listCatalogProducts(ctx.conn, operatorId);
+    const products = list.map((c) => ({
+      id: String(c.NayaxProductID ?? c.ProductID ?? ""),
+      name: catalogName(c),
+      dexName: String(c.DEXProductName ?? ""),
+      hasPicture: Boolean(catalogImage(c)),
+    }));
+    return {
+      operatorId,
+      total: products.length,
+      withPicture: products.filter((p) => p.hasPicture).length,
+      products: products.slice(0, 50),
+    };
   } catch {
     return null;
   }

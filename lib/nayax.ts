@@ -474,11 +474,15 @@ export function productLowStock(p: Product): boolean {
 
 /* catalog (the Nayax product SKUs that slots link to via NayaxProductID) */
 
-// Catalog detail path. machineProducts lives under /operational/v1/..., but the
-// per-slot ProductRef is "v1/products/{id}" with no /operational prefix. This
-// prefix is UNVERIFIED — confirm/flip it once a 200 is observed via the
-// API-access "Test access" probe (lib/api-status.ts).
-const CATALOG_PRODUCT_PATH = (id: number | string) => `/v1/products/${id}`;
+// Verified 200 on 2026-08-04. lynx.nayax.com 301s bare /v1/... to
+// /operational/v1/..., so both forms reach the same endpoint on a GET; the
+// canonical prefix is used here so no redirect is involved.
+const CATALOG_PRODUCT_PATH = (id: number | string) => `/operational/v1/products/${id}`;
+
+// The operator's own catalog. Confirmed by the `Refs.create` value inside a real
+// catalog body: "v1/operators/208366919/products".
+const CATALOG_LIST_PATH = (operatorId: number | string) =>
+  `/operational/v1/operators/${operatorId}/products`;
 
 export type CatalogProduct = Record<string, unknown>;
 
@@ -519,6 +523,29 @@ export async function getCatalogProducts(
     }),
   );
   return out;
+}
+
+/** The operator id that owns the catalog. Present on catalog bodies as ActorID
+ * and on machine records under one of several names. */
+export function catalogOperatorId(o: Record<string, unknown>): string {
+  return pickStr(o, ["ActorID", "OperatorActorID", "OperatorID", "ActorId"]);
+}
+
+/**
+ * Every catalog product the operator owns — the set a slot can be mapped to.
+ * Returns [] on any failure so callers can distinguish "no access" from "no
+ * products" only by checking access separately. Never throws.
+ */
+export async function listCatalogProducts(
+  conn: NayaxConn,
+  operatorId: number | string,
+): Promise<CatalogProduct[]> {
+  if (!operatorId) return [];
+  try {
+    return asArray<CatalogProduct>(await lynx<unknown>(conn, CATALOG_LIST_PATH(operatorId)));
+  } catch {
+    return [];
+  }
 }
 
 /*

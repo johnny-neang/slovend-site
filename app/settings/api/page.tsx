@@ -5,6 +5,7 @@ import {
   disconnectApi,
   canaryVerifiedForCurrentMachine,
   writeReadinessForCurrentMachine,
+  catalogSummaryForCurrentMachine,
 } from "../actions";
 import AccessTester from "@/components/AccessTester";
 import WriteCanary from "@/components/WriteCanary";
@@ -20,9 +21,13 @@ export default async function ApiPage({
   const ctx = await getCtx();
   const sp = await searchParams;
   const conn = ctx.conn;
-  const [canaryVerified, writeReadiness] = conn
-    ? await Promise.all([canaryVerifiedForCurrentMachine(), writeReadinessForCurrentMachine()])
-    : [false, null];
+  const [canaryVerified, writeReadiness, catalog] = conn
+    ? await Promise.all([
+        canaryVerifiedForCurrentMachine(),
+        writeReadinessForCurrentMachine(),
+        catalogSummaryForCurrentMachine(),
+      ])
+    : [false, null, null];
   const maskedToken = conn ? `••••••••${conn.token.slice(-4)}` : "";
 
   return (
@@ -96,6 +101,68 @@ export default async function ApiPage({
           <div className="panel-h">Your live access</div>
           <AccessTester connected={Boolean(conn)} />
         </div>
+
+        {catalog && (
+          <div className="panel" style={{ marginBottom: 20 }}>
+            <div className="panel-h">Your Nayax product catalog</div>
+            <p className="mcp-sub" style={{ marginBottom: 14 }}>
+              The products a slot can be mapped to. Mapping the {writeReadiness?.blockedSlots.length ?? 0}{" "}
+              unassigned slots is only meaningful if there are real products here to map them to.
+            </p>
+            <div className="table-card" style={{ border: "none", marginBottom: 14 }}>
+              <table className="dtable">
+                <tbody>
+                  <tr>
+                    <td>Products in catalog</td>
+                    <td>
+                      <span className={`acc ${catalog.total > 0 ? "acc-granted" : "acc-forbidden"}`}>
+                        {catalog.total}
+                      </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>With a picture set</td>
+                    <td className="mono">
+                      {catalog.withPicture} of {catalog.total}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Operator id</td>
+                    <td className="mono">{catalog.operatorId}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            {catalog.products.length > 0 && (
+              <div className="table-card" style={{ border: "none" }}>
+                <table className="dtable">
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>Machine name</th>
+                      <th>Picture</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {catalog.products.map((p) => (
+                      <tr key={p.id}>
+                        <td>{p.name || <span className="muted">unnamed</span>}</td>
+                        <td className="muted">{p.dexName || "—"}</td>
+                        <td>
+                          {p.hasPicture ? (
+                            <span className="badge-ok">Yes</span>
+                          ) : (
+                            <span className="muted">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="panel">
           <div className="panel-h">Planogram write canary</div>
