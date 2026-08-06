@@ -29,8 +29,27 @@ import { mdbToSlot } from "@/lib/slot-code";
  *     targeted fields altered. See buildFullSetPayload.
  */
 
+/**
+ * Whole-planogram write.
+ *
+ * `avoidDelete=true` is NOT optional. Per the Lynx reference, this endpoint's
+ * default is `avoidDelete=false`, which REPLACES the entire product map — any
+ * row absent from the payload is deleted. Every call here is pinned to the
+ * non-destructive mode so that a payload which somehow omits a row can never
+ * silently destroy it.
+ */
 export const PLANOGRAM_PATH = (machineId: string | number) =>
-  `/operational/v1/machines/${machineId}/machineProducts`;
+  `/operational/v1/machines/${machineId}/machineProducts?avoidDelete=true`;
+
+/**
+ * Single-row write: updates one slot in place and submits nothing else.
+ *
+ * This is the endpoint that makes editing possible on a machine whose other
+ * slots are unassigned — Lynx validates the rows it is given, so a slot that
+ * already has a NayaxProductID can be updated even while 31 siblings sit at 0.
+ */
+export const PLANOGRAM_ROW_PATH = (machineId: string | number, machineProductId: string | number) =>
+  `/operational/v1/machines/${machineId}/machineProducts/${machineProductId}`;
 
 /* ------------------------------ policy ------------------------------- */
 

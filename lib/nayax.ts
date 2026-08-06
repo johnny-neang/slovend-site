@@ -427,6 +427,17 @@ export function productName(p: Product): string {
 export function productBay(p: Product): string {
   return pickStr(p, ["MDBCode", "Selection", "Bay", "Code", "Column", "Position", "Slot", "PACode"]);
 }
+/**
+ * Per-row planogram identifier. Documented in the Lynx reference for
+ * `GET /v1/machines/{id}/machineProducts`, and the path parameter for
+ * `PUT /v1/machines/{id}/machineProducts/{MachineProductID}` — the endpoint that
+ * updates ONE slot without submitting the rest of the planogram.
+ */
+export function productMachineProductId(p: Product): number | null {
+  const n = pickNum(p, ["MachineProductID", "MachineProductId"]);
+  return n && n > 0 ? n : null;
+}
+
 /** Raw MDBCode integer as reported by Lynx — the value productSlot decodes the
  * human slot/selection from. Null when the planogram row carries no MDBCode. */
 export function productMdbCode(p: Product): number | null {
